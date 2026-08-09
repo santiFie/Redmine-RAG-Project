@@ -1,0 +1,51 @@
+# ==============================================================================
+# LangGraph + LlamaIndex + Redmine — Dependencias del Proyecto
+# Instalar con: pip install -r requirements.txt
+# O con uv: uv pip install -r requirements.txt
+# ==============================================================================
+
+# --- LangGraph / LangChain ---
+langgraph>=0.2.0
+langgraph-cli>=0.1.0
+langchain>=0.3.0
+langchain-core>=0.3.0
+langchain-community>=0.3.0
+langchain-mcp-adapters>=0.3.0   # adaptador MCP para integrar tools en LangGraph
+langchain-openai>=0.2.0        # proveedor OpenAI (GPT-4o, etc.)
+langchain-anthropic>=0.2.0     # proveedor Anthropic (Claude)
+langchain-ollama>=0.2.0        # proveedor Ollama (modelos locales)
+langgraph-checkpoint-postgres>=2.0.0  # checkpointing persistente en Postgres
+
+# --- LlamaIndex RAG ---
+llama-index>=0.11.0
+llama-index-core>=0.11.0
+llama-index-llms-openai>=0.3.0
+llama-index-llms-ollama>=0.3.0
+llama-index-embeddings-openai>=0.3.0
+llama-index-embeddings-ollama>=0.3.0
+llama-index-vector-stores-qdrant>=0.3.0   # integración con Qdrant
+llama-index-readers-web>=0.2.0
+
+# --- Redmine API REST ---
+httpx>=0.27.0          # cliente HTTP async (recomendado)
+requests>=2.32.0       # cliente HTTP sync (fallback / scripts simples)
+pydantic>=2.7.0        # validación de esquemas y modelos de datos
+
+# --- Vector DB ---
+qdrant-client>=1.9.0   # cliente oficial de Qdrant
+
+# --- Configuración y entorno ---
+python-dotenv>=1.0.0   # carga de variables desde .env
+
+# --- Utilidades ---
+tenacity>=8.3.0        # reintentos con backoff exponencial
+structlog>=24.1.0      # logging estructurado
+rich>=13.7.0           # output enriquecido en CLI
+typer>=0.12.0          # CLI para scripts de ingesta y utilidades
+
+# --- Desarrollo / Testing ---
+pytest>=8.2.0
+pytest-asyncio>=0.23.0
+pytest-httpx>=0.30.0   # mock de peticiones httpx en tests
+mypy>=1.10.0
+ruff>=0.4.0            # linter + formatter

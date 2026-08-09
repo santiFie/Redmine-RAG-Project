@@ -1,0 +1,135 @@
+{
+  "generated_at": "2026-08-06T16:50:00+00:00",
+  "thresholds": {
+    "faithfulness": 0.5,
+    "answer_relevancy": 0.5,
+    "context_precision": 0.4,
+    "context_recall": 0.4
+  },
+  "aggregate_scores": {
+    "faithfulness": 0.8571428571428571,
+    "answer_relevancy": null,
+    "context_precision": 0.8888888888430556,
+    "context_recall": 1.0
+  },
+  "samples": [
+    {
+      "index": 1,
+      "user_input": "¿Cuál es la causa raíz del error 500 en el endpoint /api/projects?",
+      "reference": "La causa raíz del error HTTP 500 en el endpoint /api/projects es un NullPointerException en ProjectRepository.findByStatusAndAssignee. Esto ocurre porque el campo 'assigned_to_id' puede ser NULL en la base de datos cuando un proyecto no tiene responsable asignado, y el query ORM no contempla ese caso.",
+      "reference_contexts": [
+        "Issue #101: Error 500 en el endpoint /api/projects al filtrar por estado\n\nAl realizar una petición GET a /api/projects?status=active se obtiene un HTTP 500. El error ocurre únicamente cuando el parámetro 'status' se combina con el filtro 'assigned_to_id'. El stack trace indica un NullPointerException en la capa de repositorio (ProjectRepository.findByStatusAndAssignee).",
+        "Comentario en Issue #101 por Carlos López:\nReproduje el error localmente. La causa raíz es que 'assigned_to_id' puede ser NULL en la base de datos cuando un proyecto no tiene asignado un responsable. El query ORM no maneja ese caso."
+      ],
+      "response": null,
+      "retrieved_contexts": null,
+      "scores": {
+        "faithfulness": 1.0,
+        "answer_relevancy": null,
+        "context_precision": 1.0,
+        "context_recall": 1.0
+      }
+    },
+    {
+      "index": 2,
+      "user_input": "¿Qué solución se propuso para el NullPointerException en el repositorio de proyectos?",
+      "reference": "Se propuso añadir una condición IS NOT NULL en la cláusula WHERE de la consulta, o bien cambiar a una LEFT JOIN para manejar los proyectos sin responsable asignado. El fix fue implementado en la rama fix/project-null-assignee e incluye tests de integración para el caso edge.",
+      "reference_contexts": [
+        "Comentario en Issue #101 por Carlos López:\nLa causa raíz es que 'assigned_to_id' puede ser NULL en la base de datos. Propongo añadir un IS NOT NULL en el WHERE o cambiar a una LEFT JOIN.",
+        "Comentario en Issue #101 por Carlos López:\nFix implementado en rama fix/project-null-assignee. Se añadió la condición IS NOT NULL y se agregaron tests de integración para el caso edge. Listo para revisión."
+      ],
+      "response": null,
+      "retrieved_contexts": null,
+      "scores": {
+        "faithfulness": 1.0,
+        "answer_relevancy": null,
+        "context_precision": 1.0,
+        "context_recall": 1.0
+      }
+    },
+    {
+      "index": 3,
+      "user_input": "¿Qué tecnologías y scopes se deben usar para implementar OAuth2 con GitHub?",
+      "reference": "Para implementar OAuth2 con GitHub se debe usar Python 3.12, FastAPI y la librería authlib. El flujo debe solicitar los scopes 'read:user' y 'user:email'. Se recomienda el flujo Authorization Code con PKCE. Una vez obtenido el token, el perfil del usuario se crea o actualiza usando el email como identificador único.",
+      "reference_contexts": [
+        "Issue #102: Implementar autenticación OAuth2 para la integración con GitHub\n\nSe requiere implementar el flujo OAuth2 para permitir que los usuarios inicien sesión con su cuenta de GitHub. El sistema debe solicitar los scopes 'read:user' y 'user:email'. Tecnologías: Python 3.12, FastAPI, librería authlib.",
+        "Comentario en Issue #102 por Luis Pérez:\nRevisar si authlib soporta correctamente el flujo de Authorization Code con PKCE, ya que GitHub lo recomienda para aplicaciones web."
+      ],
+      "response": null,
+      "retrieved_contexts": null,
+      "scores": {
+        "faithfulness": 0.6666666666666666,
+        "answer_relevancy": null,
+        "context_precision": 1.0,
+        "context_recall": 1.0
+      }
+    },
+    {
+      "index": 4,
+      "user_input": "¿Cómo se resolvió el problema de rendimiento en Qdrant con más de 50.000 documentos?",
+      "reference": "Se optimizaron los parámetros del índice HNSW de Qdrant: se aumentó el parámetro m de 16 (valor por defecto) a 32 y se configuró ef_construct=200. Con estos ajustes, la latencia de búsqueda con 50k documentos bajó de 8 segundos a 1.2 segundos, y la recall a top-10 mejoró de 0.87 a 0.94.",
+      "reference_contexts": [
+        "Issue #103: Degradación de rendimiento en consultas al vector store con más de 10k documentos\n\nA partir de los 10.000 documentos indexados en Qdrant, las consultas de similitud superan los 2 segundos de latencia. Se sospecha que la colección no tiene configurado un índice HNSW apropiado. El parámetro m está en el valor por defecto (16).",
+        "Comentario en Issue #103 por Sofía Ruiz:\nRealizamos pruebas de carga con m=32 y ef_construct=200. La latencia de búsqueda bajó de 8s a 1.2s con 50k documentos. La recall a top-10 mejoró de 0.87 a 0.94."
+      ],
+      "response": null,
+      "retrieved_contexts": null,
+      "scores": {
+        "faithfulness": 1.0,
+        "answer_relevancy": null,
+        "context_precision": 0.75,
+        "context_recall": 1.0
+      }
+    },
+    {
+      "index": 5,
+      "user_input": "¿Cuál era la latencia de consulta en Qdrant antes y después de la optimización HNSW?",
+      "reference": "Antes de la optimización, la latencia con 50.000 documentos era de 8 a 10 segundos. Después de ajustar m=32 y ef_construct=200 en el índice HNSW, la latencia bajó a 1.2 segundos.",
+      "reference_contexts": [
+        "Issue #103: Degradación de rendimiento en consultas al vector store con más de 10k documentos\n\nCon 50k+ documentos el tiempo sube a 8-10 segundos.",
+        "Comentario en Issue #103 por Sofía Ruiz:\nRealizamos pruebas de carga con m=32 y ef_construct=200. La latencia de búsqueda bajó de 8s a 1.2s con 50k documentos."
+      ],
+      "response": null,
+      "retrieved_contexts": null,
+      "scores": {
+        "faithfulness": 1.0,
+        "answer_relevancy": null,
+        "context_precision": 0.875,
+        "context_recall": 1.0
+      }
+    },
+    {
+      "index": 6,
+      "user_input": "¿Qué columnas debe tener el reporte exportable y en qué formatos está disponible?",
+      "reference": "El reporte exportable está disponible en formato CSV y XLSX. Las columnas requeridas son: ID, Título, Estado, Autor, Proyecto, Fecha de creación y Fecha de actualización. El CSV usa UTF-8 con BOM para compatibilidad con Excel en Windows.",
+      "reference_contexts": [
+        "Issue #104: Agregar soporte para exportar reportes en formato CSV y Excel\n\nLos usuarios solicitan poder exportar el listado de issues en formato CSV y XLSX. El CSV debe usar UTF-8 con BOM. Columnas requeridas: ID, Título, Estado, Autor, Proyecto, Fecha de creación, Fecha de actualización."
+      ],
+      "response": null,
+      "retrieved_contexts": null,
+      "scores": {
+        "faithfulness": 0.5,
+        "answer_relevancy": null,
+        "context_precision": 0.875,
+        "context_recall": 1.0
+      }
+    },
+    {
+      "index": 7,
+      "user_input": "¿Por qué fallaban los tests de integración en GitHub Actions y cómo se solucionó?",
+      "reference": "Los tests fallaban porque el servicio PostgreSQL del workflow de GitHub Actions no estaba listo para aceptar conexiones cuando los tests comenzaban, produciendo el error 'Connection refused: localhost:5432'. La solución fue añadir una etapa 'wait-for-postgres' que ejecuta pg_isready en loop con reintentos, y configurar el health check con '--health-cmd pg_isready --health-interval 10s --health-retries 5'.",
+      "reference_contexts": [
+        "Issue #105: Pipeline CI/CD: fallos intermitentes en la etapa de tests de integración\n\nEn GitHub Actions, la etapa 'integration-tests' falla aproximadamente 1 de cada 5 ejecuciones con el error: 'Connection refused: localhost:5432'. El servicio PostgreSQL del workflow parece no estar listo cuando los tests comienzan.",
+        "Comentario en Issue #105 por Roberto Silva:\nSolución: añadir una etapa 'wait-for-postgres' que ejecute pg_isready en un loop con reintentos antes de correr los tests. También se cambió la condición health check a 'options: --health-cmd pg_isready --health-interval 10s --health-retries 5'."
+      ],
+      "response": null,
+      "retrieved_contexts": null,
+      "scores": {
+        "faithfulness": 1.0,
+        "answer_relevancy": null,
+        "context_precision": 1.0,
+        "context_recall": 1.0
+      }
+    }
+  ]
+}

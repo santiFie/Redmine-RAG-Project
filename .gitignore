@@ -1,0 +1,72 @@
+# ==============================================================================
+# .gitignore — LangGraph + Redmine + LlamaIndex RAG Project
+# ==============================================================================
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.whl
+.eggs/
+
+# --- Entornos virtuales ---
+.venv/
+venv/
+env/
+ENV/
+
+# --- Variables de entorno (NUNCA commitear) ---
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# --- LangGraph / LangSmith ---
+.langgraph/
+langgraph_checkpoint.db
+
+# --- LlamaIndex ---
+storage/
+index_store.json
+vector_store.json
+docstore.json
+graph_store.json
+
+# --- Qdrant (si se usa almacenamiento local) ---
+qdrant_storage/
+
+# --- Datos / índices RAG ---
+data/raw/
+data/processed/
+data/indices/
+*.faiss
+*.pkl
+
+# --- Docker ---
+.docker/
+
+# --- IDEs ---
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# --- Testing ---
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# --- Logs ---
+*.log
+logs/

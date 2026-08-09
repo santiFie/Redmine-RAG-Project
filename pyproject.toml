@@ -1,0 +1,111 @@
+[build-system]
+requires = ["setuptools>=70.0", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "redmine-langgraph-rag"
+version = "0.1.0"
+description = "LangGraph agent with Redmine API and LlamaIndex RAG integration"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "Tu Nombre", email = "tu@email.com" }]
+
+dependencies = [
+    # LangGraph / LangChain
+    "langgraph>=0.2.0",
+    "langgraph-cli>=0.1.0",
+    "langchain>=0.3.0",
+    "langchain-core>=0.3.0",
+    "langchain-community>=0.3.0",
+    "langchain-openai>=0.2.0",
+    "langchain-anthropic>=0.2.0",
+    "langchain-ollama>=0.2.0",
+    "langgraph-checkpoint-postgres>=2.0.0",
+    # LlamaIndex RAG
+    "llama-index>=0.11.0",
+    "llama-index-core>=0.11.0",
+    "llama-index-llms-openai>=0.3.0",
+    "llama-index-llms-ollama>=0.3.0",
+    "llama-index-embeddings-openai>=0.3.0",
+    "llama-index-embeddings-ollama>=0.3.0",
+    "llama-index-vector-stores-qdrant>=0.3.0",
+    # Redmine API REST
+    "httpx>=0.27.0",
+    "requests>=2.32.0",
+    "pydantic>=2.7.0",
+    # Vector DB
+    "qdrant-client>=1.9.0",
+    # Configuración
+    "python-dotenv>=1.0.0",
+    # Utilidades
+    "tenacity>=8.3.0",
+    "structlog>=24.1.0",
+    "rich>=13.7.0",
+    "typer>=0.12.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.2.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-httpx>=0.30.0",
+    "mypy>=1.10.0",
+    "ruff>=0.4.0",
+]
+ragas = [
+    # Evaluación RAG con Ragas + integración LlamaIndex
+    "ragas>=0.2.0",
+    "llama-index-llms-groq>=0.3.0",
+    "llama-index-embeddings-huggingface-api>=0.3.0",
+    "pandas>=2.0.0",
+]
+
+[project.scripts]
+# CLI para operaciones de ingesta y utilidades
+# Uso: python -m redmine_rag ingest --project my-project
+redmine-rag = "src.cli:app"  # TODO: implementar CLI con Typer
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+# ==============================================================================
+# Ruff (linter + formatter)
+# ==============================================================================
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]  # line length handled by formatter
+
+[tool.ruff.format]
+quote-style = "double"
+
+# ==============================================================================
+# MyPy (type checking)
+# ==============================================================================
+[tool.mypy]
+python_version = "3.12"
+strict = false
+ignore_missing_imports = true
+warn_return_any = true
+
+# ==============================================================================
+# Pytest
+# ==============================================================================
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+markers = [
+    "ragas: tests de evaluación con Ragas (requieren Qdrant activo y APIs configuradas)",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning:llama_index.*",
+    "ignore::DeprecationWarning:ragas.*",
+    "ignore::RuntimeWarning:ragas.*",
+]

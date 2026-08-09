@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>RAG Evaluation Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg:       #0d0f1a;
+    --surface:  #131624;
+    --card:     #1a1e30;
+    --border:   #252a40;
+    --accent:   #6c63ff;
+    --accent2:  #00d4aa;
+    --danger:   #ff5e7e;
+    --warn:     #f5a623;
+    --text:     #e8eaf6;
+    --muted:    #7b82a6;
+    --pass:     #00c896;
+    --fail:     #ff5e7e;
+    --r: 12px;
+    --tr: 0.18s ease;
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:0 0 60px}
+  /* ── Header ── */
+  header{background:linear-gradient(135deg,#1a1e30 0%,#0d0f1a 100%);border-bottom:1px solid var(--border);padding:28px 40px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:100;backdrop-filter:blur(12px)}
+  .logo{width:40px;height:40px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+  .header-text h1{font-size:1.3rem;font-weight:700;letter-spacing:-.3px}
+  .header-text p{font-size:.8rem;color:var(--muted);margin-top:2px}
+  .header-meta{margin-left:auto;display:flex;align-items:center;gap:12px}
+  .badge{font-size:.72rem;font-weight:600;padding:4px 10px;border-radius:20px;border:1px solid}
+  .badge-pass{color:var(--pass);border-color:var(--pass);background:rgba(0,200,150,.08)}
+  .badge-fail{color:var(--fail);border-color:var(--fail);background:rgba(255,94,126,.08)}
+  .ts{font-size:.72rem;color:var(--muted)}
+  /* ── Layout ── */
+  main{max-width:1300px;margin:0 auto;padding:36px 40px;display:flex;flex-direction:column;gap:36px}
+  section-title{display:block;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:16px}
+  /* ── Metric cards ── */
+  .metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+  .metric-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:22px 24px;position:relative;overflow:hidden;transition:transform var(--tr),box-shadow var(--tr)}
+  .metric-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+  .metric-card.pass::before{background:linear-gradient(90deg,var(--pass),var(--accent2))}
+  .metric-card.fail::before{background:linear-gradient(90deg,var(--fail),var(--warn))}
+  .metric-card.na::before{background:var(--border)}
+  .metric-card:hover{transform:translateY(-3px);box-shadow:0 12px 40px rgba(0,0,0,.35)}
+  .metric-name{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px}
+  .metric-value{font-size:2.4rem;font-weight:700;line-height:1;font-family:'JetBrains Mono',monospace}
+  .metric-value.pass-color{color:var(--pass)}
+  .metric-value.fail-color{color:var(--fail)}
+  .metric-value.na-color{color:var(--muted)}
+  .metric-threshold{font-size:.72rem;color:var(--muted);margin-top:8px}
+  .metric-threshold span{color:var(--text);font-weight:500}
+  .progress-bar{height:4px;background:rgba(255,255,255,.08);border-radius:4px;margin-top:14px;overflow:hidden}
+  .progress-fill{height:100%;border-radius:4px;transition:width .6s ease}
+  .progress-fill.pass{background:linear-gradient(90deg,var(--accent2),var(--pass))}
+  .progress-fill.fail{background:linear-gradient(90deg,var(--fail),var(--warn))}
+  /* ── Section divider ── */
+  .section-header{display:flex;align-items:center;gap:12px;margin-bottom:20px}
+  .section-header h2{font-size:1rem;font-weight:600}
+  .section-header .pill{font-size:.7rem;background:rgba(108,99,255,.15);color:var(--accent);border:1px solid rgba(108,99,255,.3);border-radius:20px;padding:3px 10px;font-weight:600}
+  /* ── Sample cards ── */
+  .samples-list{display:flex;flex-direction:column;gap:16px}
+  .sample-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
+  .sample-header{display:flex;align-items:center;gap:14px;padding:16px 22px;cursor:pointer;transition:background var(--tr);user-select:none}
+  .sample-header:hover{background:rgba(255,255,255,.03)}
+  .sample-index{width:30px;height:30px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;flex-shrink:0}
+  .sample-question{flex:1;font-size:.9rem;font-weight:500;line-height:1.4}
+  .sample-scores-mini{display:flex;gap:8px;flex-wrap:wrap;flex-shrink:0}
+  .score-chip{font-size:.7rem;font-weight:600;padding:3px 9px;border-radius:6px;font-family:'JetBrains Mono',monospace}
+  .score-chip.pass{background:rgba(0,200,150,.12);color:var(--pass);border:1px solid rgba(0,200,150,.25)}
+  .score-chip.fail{background:rgba(255,94,126,.12);color:var(--fail);border:1px solid rgba(255,94,126,.25)}
+  .score-chip.na{background:rgba(123,130,166,.1);color:var(--muted);border:1px solid var(--border)}
+  .chevron{color:var(--muted);transition:transform var(--tr);flex-shrink:0;font-size:.85rem}
+  .chevron.open{transform:rotate(180deg)}
+  .sample-body{display:none;border-top:1px solid var(--border)}
+  .sample-body.open{display:block}
+  .sample-body-inner{padding:20px 22px;display:flex;flex-direction:column;gap:18px}
+  /* ── Text blocks ── */
+  .text-block{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+  .text-block-label{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:8px 14px;background:rgba(255,255,255,.03);border-bottom:1px solid var(--border);color:var(--muted);display:flex;align-items:center;gap:6px}
+  .text-block-label .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+  .dot-q{background:var(--accent)}
+  .dot-r{background:var(--accent2)}
+  .dot-c{background:var(--warn)}
+  .dot-a{background:#e879f9}
+  .text-block-content{padding:12px 14px;font-size:.82rem;line-height:1.65;color:var(--text);white-space:pre-wrap;word-break:break-word}
+  .contexts-list{display:flex;flex-direction:column;gap:8px;padding:12px 14px}
+  .context-item{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:10px 12px;font-size:.78rem;line-height:1.6;color:#c5c9e0;font-family:'JetBrains Mono',monospace;white-space:pre-wrap;word-break:break-word}
+  .context-item:nth-child(1){border-left:3px solid var(--warn)}
+  .context-item:nth-child(2){border-left:3px solid #f97316}
+  .context-item:nth-child(3){border-left:3px solid #a78bfa}
+  /* ── Per-sample metric row ── */
+  .sample-metrics-row{display:flex;gap:10px;flex-wrap:wrap}
+  .sample-metric-chip{flex:1;min-width:130px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px}
+  .smc-name{font-size:.62rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;margin-bottom:4px}
+  .smc-value{font-size:1.2rem;font-weight:700;font-family:'JetBrains Mono',monospace}
+  .smc-value.pass{color:var(--pass)}
+  .smc-value.fail{color:var(--fail)}
+  .smc-value.na{color:var(--muted)}
+  /* ── Empty state ── */
+  .empty{text-align:center;padding:80px 40px;color:var(--muted)}
+  .empty p{margin-top:10px;font-size:.85rem}
+  /* ── Error ── */
+  .error-box{background:rgba(255,94,126,.08);border:1px solid rgba(255,94,126,.3);border-radius:var(--r);padding:20px 24px;color:var(--fail);font-size:.85rem}
+  /* ── Footer ── */
+  footer{text-align:center;padding:40px;font-size:.72rem;color:var(--muted)}
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar{width:6px;height:6px}
+  ::-webkit-scrollbar-track{background:var(--bg)}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🧠</div>
+  <div class="header-text">
+    <h1>RAG Evaluation Dashboard</h1>
+    <p>Ragas · LlamaIndex · AI as a Judge</p>
+  </div>
+  <div class="header-meta">
+    <span id="overall-badge" class="badge">—</span>
+    <span id="ts-badge" class="ts">—</span>
+  </div>
+</header>
+
+<main>
+  <div id="error-container"></div>
+
+  <!-- Aggregate metrics -->
+  <div>
+    <section-title id="agg-title">Métricas Agregadas</section-title>
+    <div class="metric-grid" id="metric-grid"></div>
+  </div>
+
+  <!-- Per-sample breakdown -->
+  <div>
+    <div class="section-header">
+      <h2>Muestras de Evaluación</h2>
+      <span class="pill" id="sample-count-pill">0 muestras</span>
+    </div>
+    <div class="samples-list" id="samples-list"></div>
+  </div>
+</main>
+
+<footer>
+  RAG Evaluation Dashboard · generado por <strong>test_rag_ragas.py</strong>
+</footer>
+
+<script>
+const METRIC_LABELS = {
+  faithfulness:      'Faithfulness',
+  answer_relevancy:  'Answer Relevancy',
+  context_precision: 'Context Precision',
+  context_recall:    'Context Recall',
+};
+
+const METRIC_DESC = {
+  faithfulness:      'La respuesta no alucina datos ajenos al contexto recuperado.',
+  answer_relevancy:  'La respuesta es pertinente a la pregunta formulada.',
+  context_precision: 'Los contextos recuperados son relevantes para la pregunta.',
+  context_recall:    'La respuesta de referencia puede derivarse del contexto.',
+};
+
+function fmt(v) {
+  if (v === null || v === undefined || isNaN(v)) return 'N/A';
+  return (v * 100).toFixed(1) + '%';
+}
+
+function scoreClass(v, threshold) {
+  if (v === null || v === undefined || isNaN(v)) return 'na';
+  return v >= threshold ? 'pass' : 'fail';
+}
+
+function renderMetricGrid(scores, thresholds) {
+  const grid = document.getElementById('metric-grid');
+  grid.innerHTML = '';
+  Object.entries(METRIC_LABELS).forEach(([key, label]) => {
+    const v = scores[key];
+    const t = thresholds[key] ?? 0.5;
+    const cls = scoreClass(v, t);
+    const pct = (v !== null && !isNaN(v)) ? Math.min(v * 100, 100) : 0;
+    grid.innerHTML += `
+      <div class="metric-card ${cls}" title="${METRIC_DESC[key]}">
+        <div class="metric-name">${label}</div>
+        <div class="metric-value ${cls}-color">${fmt(v)}</div>
+        <div class="metric-threshold">Umbral: <span>${fmt(t)}</span></div>
+        <div class="progress-bar"><div class="progress-fill ${cls}" style="width:${pct}%"></div></div>
+      </div>`;
+  });
+}
+
+function chipHtml(key, v, threshold) {
+  const cls = scoreClass(v, threshold);
+  const short = METRIC_LABELS[key]?.split(' ')[0] ?? key;
+  return `<span class="score-chip ${cls}" title="${METRIC_LABELS[key] ?? key}">${short}: ${fmt(v)}</span>`;
+}
+
+function renderSamples(samples, thresholds) {
+  const list = document.getElementById('samples-list');
+  list.innerHTML = '';
+  if (!samples || samples.length === 0) {
+    list.innerHTML = `<div class="empty">
+      <div style="font-size:2rem">🔍</div>
+      <p>No hay muestras disponibles. Re-ejecuta los tests para generar el reporte completo.</p>
+    </div>`;
+    document.getElementById('sample-count-pill').textContent = '0 muestras';
+    return;
+  }
+  document.getElementById('sample-count-pill').textContent = `${samples.length} muestras`;
+
+  samples.forEach((s, i) => {
+    const scores = s.scores ?? {};
+    const chipsHtml = Object.entries(METRIC_LABELS).map(([k]) =>
+      chipHtml(k, scores[k], thresholds[k] ?? 0.5)
+    ).join('');
+
+    const ctxHtml = (s.reference_contexts ?? []).map(c =>
+      `<div class="context-item">${escHtml(c)}</div>`
+    ).join('') || '<div class="context-item" style="color:var(--muted)">Sin contextos de referencia</div>';
+
+    const retrivedHtml = (s.retrieved_contexts?.length)
+      ? s.retrieved_contexts.map(c => `<div class="context-item">${escHtml(c)}</div>`).join('')
+      : `<div class="context-item" style="color:var(--muted)">No disponible (re-ejecuta con query_engine activo)</div>`;
+
+    const responseHtml = s.response
+      ? `<div class="text-block"><div class="text-block-label"><span class="dot dot-a"></span>Respuesta generada por el RAG</div><div class="text-block-content">${escHtml(s.response)}</div></div>`
+      : '';
+
+    const perMetrics = Object.entries(METRIC_LABELS).map(([k, label]) => {
+      const v = scores[k];
+      const cls = scoreClass(v, thresholds[k] ?? 0.5);
+      return `<div class="sample-metric-chip">
+        <div class="smc-name">${label}</div>
+        <div class="smc-value ${cls}">${fmt(v)}</div>
+      </div>`;
+    }).join('');
+
+    const card = document.createElement('div');
+    card.className = 'sample-card';
+    card.innerHTML = `
+      <div class="sample-header" onclick="toggleSample(this)" id="sh-${i}">
+        <div class="sample-index">${s.index ?? i+1}</div>
+        <div class="sample-question">${escHtml(s.user_input ?? '')}</div>
+        <div class="sample-scores-mini">${chipsHtml}</div>
+        <span class="chevron" id="ch-${i}">▼</span>
+      </div>
+      <div class="sample-body" id="sb-${i}">
+        <div class="sample-body-inner">
+          <!-- Question -->
+          <div class="text-block">
+            <div class="text-block-label"><span class="dot dot-q"></span>Pregunta (user_input)</div>
+            <div class="text-block-content">${escHtml(s.user_input ?? '')}</div>
+          </div>
+          <!-- Reference -->
+          <div class="text-block">
+            <div class="text-block-label"><span class="dot dot-r"></span>Respuesta de referencia (ground truth)</div>
+            <div class="text-block-content">${escHtml(s.reference ?? '')}</div>
+          </div>
+          <!-- RAG response -->
+          ${responseHtml}
+          <!-- Reference contexts -->
+          <div class="text-block">
+            <div class="text-block-label"><span class="dot dot-c"></span>Contextos de referencia (${(s.reference_contexts ?? []).length})</div>
+            <div class="contexts-list">${ctxHtml}</div>
+          </div>
+          <!-- Retrieved contexts -->
+          <div class="text-block">
+            <div class="text-block-label"><span class="dot dot-a"></span>Contextos recuperados por el retriever</div>
+            <div class="contexts-list">${retrivedHtml}</div>
+          </div>
+          <!-- Per-sample scores -->
+          <div>
+            <div class="text-block-label" style="background:transparent;border:none;padding:0 0 8px;color:var(--muted)"><span class="dot dot-q"></span>Scores por muestra</div>
+            <div class="sample-metrics-row">${perMetrics}</div>
+          </div>
+        </div>
+      </div>`;
+    list.appendChild(card);
+  });
+}
+
+function toggleSample(header) {
+  const idx = header.id.replace('sh-', '');
+  const body = document.getElementById('sb-' + idx);
+  const chev = document.getElementById('ch-' + idx);
+  body.classList.toggle('open');
+  chev.classList.toggle('open');
+}
+
+function escHtml(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showError(msg) {
+  document.getElementById('error-container').innerHTML =
+    `<div class="error-box">⚠️ ${escHtml(msg)}</div>`;
+}
+
+async function loadReport() {
+  try {
+    const resp = await fetch('./report.json');
+    if (!resp.ok) throw new Error(`HTTP ${resp.status} al cargar report.json`);
+    const data = await resp.json();
+
+    // Header meta
+    const ts = data.generated_at ? new Date(data.generated_at).toLocaleString('es-AR') : '—';
+    document.getElementById('ts-badge').textContent = ts;
+
+    const agg = data.aggregate_scores ?? {};
+    const thresholds = data.thresholds ?? {};
+    const allPass = Object.entries(thresholds).every(([k, t]) => {
+      const v = agg[k];
+      return v !== null && !isNaN(v) && v >= t;
+    });
+    const badge = document.getElementById('overall-badge');
+    badge.textContent = allPass ? '✓ Pasa umbrales' : '✗ Falla umbrales';
+    badge.className = 'badge ' + (allPass ? 'badge-pass' : 'badge-fail');
+
+    renderMetricGrid(agg, thresholds);
+    renderSamples(data.samples, thresholds);
+  } catch (e) {
+    showError(e.message + ' — Asegúrate de abrir el dashboard con un servidor HTTP o de haber ejecutado los tests primero.');
+    // Still try scores.json as fallback
+    try {
+      const r2 = await fetch('./scores.json');
+      if (r2.ok) {
+        const s = await r2.json();
+        renderMetricGrid(s, {faithfulness:.5,answer_relevancy:.5,context_precision:.4,context_recall:.4});
+      }
+    } catch (_) {}
+  }
+}
+
+loadReport();
+</script>
+</body>
+</html>

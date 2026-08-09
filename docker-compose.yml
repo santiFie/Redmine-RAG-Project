@@ -1,0 +1,117 @@
+# ==============================================================================
+# LangGraph + Redmine + LlamaIndex RAG — Docker Compose
+# Servicios: Redmine, PostgreSQL, Qdrant (Vector DB)
+# Uso: docker compose up -d
+# ==============================================================================
+
+networks:
+  langgraph_net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    name: redmine_postgres_data
+  redmine_files:
+    name: redmine_files
+  qdrant_storage:
+    name: qdrant_storage
+  langgraph_data:
+    name: langgraph_data
+
+services:
+
+  # ----------------------------------------------------------------------------
+  # PostgreSQL — Base de datos para Redmine
+  # ----------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: redmine_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${REDMINE_DB_NAME:-redmine}
+      POSTGRES_USER: ${REDMINE_DB_USER:-redmine}
+      POSTGRES_PASSWORD: ${REDMINE_DB_PASSWORD:-redmine_secret}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - langgraph_net
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${REDMINE_DB_USER:-redmine} -d ${REDMINE_DB_NAME:-redmine}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ----------------------------------------------------------------------------
+  # Redmine — Gestión de proyectos / issues (API REST habilitada por defecto)
+  # Acceso: http://localhost:3000  |  Admin: admin / admin (primer inicio)
+  # ----------------------------------------------------------------------------
+  redmine:
+    image: redmine:5.1-alpine
+    container_name: redmine_app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${REDMINE_PORT:-3000}:3000"
+    environment:
+      # Conexión a base de datos
+      REDMINE_DB_POSTGRES: postgres
+      REDMINE_DB_PORT: 5432
+      REDMINE_DB_NAME: ${REDMINE_DB_NAME:-redmine}
+      REDMINE_DB_USERNAME: ${REDMINE_DB_USER:-redmine}
+      REDMINE_DB_PASSWORD: ${REDMINE_DB_PASSWORD:-redmine_secret}
+      # Configuración de la app
+      REDMINE_SECRET_KEY_BASE: ${REDMINE_SECRET_KEY_BASE:-supersecretchangeme}
+      # La API REST de Redmine se habilita desde Administración → Configuración → API
+      # Para habilitarla por defecto al inicio, usar el plugin de seeds o vía rake:
+      # docker exec redmine_app bundle exec rake redmine:plugins:migrate RAILS_ENV=production
+    volumes:
+      - redmine_files:/usr/src/redmine/files
+    networks:
+      - langgraph_net
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:3000" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ----------------------------------------------------------------------------
+  # Qdrant — Vector Database para LlamaIndex RAG
+  # REST API: http://localhost:6333  |  gRPC: localhost:6334
+  # Dashboard: http://localhost:6333/dashboard
+  # ----------------------------------------------------------------------------
+  qdrant:
+    image: qdrant/qdrant:v1.18.2
+    container_name: qdrant_vectordb
+    restart: unless-stopped
+    ports:
+      - "${QDRANT_HTTP_PORT:-6333}:6333"
+      - "${QDRANT_GRPC_PORT:-6334}:6334"
+    # environment:
+    #   QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY} # Descomentar si se requiere autenticación
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    networks:
+      - langgraph_net
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:6333/healthz" ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  pgadmin:
+    image: dpage/pgadmin4
+    restart: always
+    ports:
+      - "8282:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+    depends_on:
+      - postgres
+    networks:
+      - langgraph_net
