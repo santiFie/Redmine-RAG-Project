@@ -1,6 +1,7 @@
 from langchain_openai import ChatOpenAI
 from langchain_groq import ChatGroq
 from langchain_nvidia_ai_endpoints import ChatNVIDIA
+from langchain_huggingface import HuggingFaceEndpoint
 from pydantic import SecretStr
 import os
 
@@ -25,6 +26,12 @@ def get_llm(
             base_url="https://openrouter.ai/api/v1",
             temperature=temperature,
             api_key=SecretStr(str(os.getenv("OPENROUTER_API_KEY", ""))),
+        ),
+        "huggingface": lambda: HuggingFaceEndpoint(
+            model=model,
+            temperature=temperature,
+            huggingfacehub_api_token=str(os.getenv("HUGGINGFACE_API_KEY", "")),
+            timeout=120,
         ),
     }
 
