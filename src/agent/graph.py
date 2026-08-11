@@ -26,6 +26,7 @@ import os
 from typing import Annotated, Any, Literal
 
 from dotenv import load_dotenv
+from guardrails import Guard
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langgraph.graph import END, START, StateGraph
@@ -35,7 +36,6 @@ from pydantic import BaseModel, Field
 from typing_extensions import TypedDict
 
 from src.rag.engine import RAGEngine
-from src.redmine.schemas import RedmineIssue
 from src.utils.get_llm import get_llm
 
 load_dotenv()
@@ -47,12 +47,48 @@ load_dotenv()
 class AgentState(TypedDict):
     messages: Annotated[list[Any], add_messages]
     user_input: str | None
+    is_safe_query: bool
     intent: Literal["query_issue", "create_issue", "update_issue", "list_issues", "search_docs", "general"]
     redmine_result: str          # resultado serializado del redmine_agent
     rag_context: str             # contexto recuperado por LlamaIndex
     final_answer: str
     error: str | None
 
+
+# ==============================================================================
+# Nodo 0: Clasificación de intención
+# ==============================================================================
+
+class SafeQueryClassification(BaseModel):
+    reasoning: str = Field(description="Breve razonamiento paso a paso de por qué elegiste esa intención")
+    is_safe_query: bool
+
+
+async def analyze_safe_query(state: AgentState) -> AgentState:
+    """
+    Clasifica si la consulta es segura para enviar al RAG o Redmine.
+    """
+    user_input = state["user_input"]
+    llm = get_llm("huggingface", "meta-llama/Llama-Guard-3-8B:featherless-ai", 0.0)
+    structured_llm = llm.with_structured_output(SafeQueryClassification)
+
+    sys_msg = SystemMessage(
+        content=(
+            "Eres un clasificador de consultas seguras. "
+            "Tu objetivo es determinar si la consulta del usuario es segura para enviar al RAG o Redmine.\n\n"
+            "Consultas seguras incluyen: búsqueda de documentos, consulta de issues, etc.\n"
+            "Consultas inseguras incluyen: información personal, financiera, etc.\n\n"
+            "Si la consulta es insegura, responde con false.\n"
+            "Si la consulta es segura, responde con true.\n"
+        )
+    )
+
+    response = await structured_llm.ainvoke([sys_msg, user_input])
+
+    return {
+        "user_input": user_input,
+        "is_safe_query": response.is_safe_query,
+    }
 
 # ==============================================================================
 # Nodo 1: Clasificación de intención
@@ -227,7 +263,7 @@ async def respond(state: AgentState) -> AgentState:
     rag_context = state.get("rag_context", "")
 
     if not rag_context:
-        raise ValueError(f"No se recuperó contexto del RAG. Revise si existe contexto indexado o si la pregunta es válida.")
+        raise ValueError("No se recuperó contexto del RAG. Revise si existe contexto indexado o si la pregunta es válida.")
 
     sys_msg = SystemMessage(
         content=(
@@ -277,6 +313,41 @@ async def respond_general(state: AgentState) -> AgentState:
 
 
 # ==============================================================================
+# Nodo 6: Guardrail de Salida (Guardrails AI)
+# ==============================================================================
+
+async def output_guardrail(state: AgentState) -> AgentState:
+    """
+    Nodo de guardrail de salida usando Guardrails AI.
+    Valida la respuesta generada por el LLM/agente antes de entregarla al usuario.
+    """
+    last_msg = next(
+        (m for m in reversed(state["messages"]) if isinstance(m, AIMessage)),
+        None,
+    )
+    content = str(last_msg.content) if last_msg and last_msg.content else state.get("final_answer", "")
+
+    if not content:
+        return state
+
+    # Parsear y validar con Guardrails AI
+    guard = Guard()
+    try:
+        outcome = guard.parse(llm_output=content)
+        if outcome.validation_passed:
+            validated_text = outcome.validated_output or content
+        else:
+            validated_text = "Lo siento, la respuesta generada no superó los controles de seguridad y calidad."
+    except Exception:
+        validated_text = content
+
+    return {
+        "messages": [AIMessage(content=validated_text)],
+        "final_answer": validated_text,
+    }
+
+
+# ==============================================================================
 # Router (Edge Condicional)
 # ==============================================================================
 
@@ -299,14 +370,31 @@ def build_graph() -> StateGraph:
     workflow = StateGraph(AgentState)
 
     # ── Nodos ──────────────────────────────────────────────────────────────────
+    workflow.add_node("analyze_safe_query", analyze_safe_query)
     workflow.add_node("analyze_intent", analyze_intent)
     workflow.add_node("redmine_agent", make_redmine_agent_node())
     workflow.add_node("rag_query", rag_query)
     workflow.add_node("respond", respond)
     workflow.add_node("respond_general", respond_general)
+    workflow.add_node("output_guardrail", output_guardrail)
 
     # ── Edges ──────────────────────────────────────────────────────────────────
-    workflow.add_edge(START, "analyze_intent")
+    workflow.add_edge(START, "analyze_safe_query")
+
+    def route_after_safe_query(state: AgentState) -> str:
+        if state["is_safe_query"]:
+            return "analyze_intent"
+        else:
+            return "end"
+
+    workflow.add_conditional_edges(
+        "analyze_safe_query",
+        route_after_safe_query,
+        {
+            "analyze_intent": "analyze_intent",
+            "end": END,
+        },
+    )
 
     workflow.add_conditional_edges(
         "analyze_intent",
@@ -318,15 +406,18 @@ def build_graph() -> StateGraph:
         },
     )
 
-    # Redmine agent ya produce su respuesta final (no pasa por respond)
-    workflow.add_edge("redmine_agent", END)
+    # Redirigir salidas al Guardrail de Salida
+    workflow.add_edge("redmine_agent", "output_guardrail")
 
-    # RAG query → respond (LLM construye la respuesta con el contexto)
+    # RAG query → respond → output_guardrail
     workflow.add_edge("rag_query", "respond")
-    workflow.add_edge("respond", END)
+    workflow.add_edge("respond", "output_guardrail")
 
-    # General directo a END
-    workflow.add_edge("respond_general", END)
+    # General → output_guardrail
+    workflow.add_edge("respond_general", "output_guardrail")
+
+    # El Guardrail de salida finaliza el grafo
+    workflow.add_edge("output_guardrail", END)
 
     return workflow
 
@@ -334,9 +425,6 @@ def build_graph() -> StateGraph:
 # ==============================================================================
 # Compilación del Grafo
 # ==============================================================================
-# Nota: Al utilizar LangGraph API / Platform (ej. `langgraph dev`), la persistencia
-# en Postgres la gestiona automáticamente la plataforma mediante la variable POSTGRES_URI.
-# No es necesario ni recomendado compilar el objeto `graph` exportado con un checkpointer manual.
 
 workflow = build_graph()
 graph = workflow.compile()
