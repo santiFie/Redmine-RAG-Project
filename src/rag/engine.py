@@ -12,13 +12,20 @@ Responsabilidades:
 
 from __future__ import annotations
 
+import contextlib
 import os
 from typing import Any
 
 from dotenv import load_dotenv
 from llama_index.core import Settings, StorageContext, VectorStoreIndex
 from llama_index.core.retrievers import AutoMergingRetriever
-from llama_index.core.schema import NodeRelationship, RelatedNodeInfo, TextNode
+from llama_index.core.schema import (
+    NodeRelationship,
+    NodeWithScore,
+    QueryBundle,
+    RelatedNodeInfo,
+    TextNode,
+)
 from llama_index.core.vector_stores.types import MetadataFilters
 from llama_index.embeddings.huggingface_api import HuggingFaceInferenceAPIEmbedding
 from llama_index.storage.docstore.postgres import PostgresDocumentStore
@@ -30,6 +37,36 @@ from src.rag.utils.parser import build_hierarchical_nodes
 from src.redmine.parser import parse_redmine_issue_to_nodes
 
 load_dotenv()
+
+
+# ==============================================================================
+# Retriever async-compatible
+# ==============================================================================
+
+class AsyncAutoMergingRetriever(AutoMergingRetriever):
+    """
+    Subclase de AutoMergingRetriever que sobreescribe ``_aretrieve`` para hacer
+    el paso de búsqueda vectorial de forma verdaderamente asíncrona.
+
+    La clase base de LlamaIndex tiene ``_aretrieve`` como fallback al método
+    síncrono. Aquí reemplazamos sólo la llamada al vector retriever por su
+    variante async (``aretrieve``), que usa ``AsyncQdrantClient`` internamente
+    para no bloquear el event loop. El merging posterior (``_try_merging``) opera
+    únicamente sobre estructuras en memoria y el docstore, por lo que su costo
+    de I/O es despreciable y se mantiene síncrono.
+    """
+
+    async def _aretrieve(self, query_bundle: QueryBundle) -> list[NodeWithScore]:
+        # Paso costoso: embedding + búsqueda en Qdrant → async nativo
+        initial_nodes = await self._vector_retriever.aretrieve(query_bundle)
+
+        # Merging jerárquico: opera en memoria/docstore → síncrono aceptable
+        cur_nodes, is_changed = self._try_merging(initial_nodes)
+        while is_changed:
+            cur_nodes, is_changed = self._try_merging(cur_nodes)
+
+        cur_nodes.sort(key=lambda x: x.get_score(), reverse=True)
+        return cur_nodes
 
 class RAGEngine:
     """
@@ -78,6 +115,15 @@ class RAGEngine:
         )
         self._storage_context = self._init_storage_context()
         self._index = self._load_or_create_index()
+
+        # Warmup del provider mapping de HuggingFace.
+        # `_fetch_inference_provider_mapping` está decorada con @lru_cache: la primera
+        # llamada hace un HTTP síncrono a la Hub API para resolver el proveedor del modelo.
+        # Disparándola aquí (en tiempo de importación, antes del event loop de LangGraph)
+        # se pre-popula el caché. Las llamadas async posteriores desde el event loop
+        # encontrarán el caché caliente y no harán I/O bloqueante.
+        with contextlib.suppress(Exception):
+            self._embed_model.get_query_embedding("warmup")
 
 
     def parse_redmine_issue_to_nodes(self, issue_data: dict[str, Any]) -> list[TextNode]:
@@ -129,23 +175,44 @@ class RAGEngine:
 
 
     def query(self, question: str, top_k: int = 5, filter: MetadataFilters | None = None) -> str:
-        """Método síncrono para ejecutar dentro de un thread aislado."""
+        """Método síncrono (mantenido para compatibilidad y tests)."""
         retriever = AutoMergingRetriever(
             vector_retriever=self._index.as_retriever(similarity_top_k=top_k, filters=filter),
             storage_context=self._storage_context,
             simple_ratio_thresh=0.1
         )
 
-        # LlamaIndex ejecuta su flujo síncrono sin colisionar con event loops
         nodes = retriever.retrieve(question)
+        return self._format_context(nodes)
 
+    async def aquery(
+        self, question: str, top_k: int = 5, filter: MetadataFilters | None = None
+    ) -> str:
+        """
+        Variante async de ``query``: usa ``AsyncAutoMergingRetriever`` para que
+        la búsqueda vectorial en Qdrant no bloquee el event loop de LangGraph.
+        """
+        retriever = AsyncAutoMergingRetriever(
+            vector_retriever=self._index.as_retriever(similarity_top_k=top_k, filters=filter),
+            storage_context=self._storage_context,
+            simple_ratio_thresh=0.1,
+        )
+
+        nodes = await retriever.aretrieve(question)
+        return self._format_context(nodes)
+
+    # ------------------------------------------------------------------
+    # Helpers privados
+    # ------------------------------------------------------------------
+
+    def _format_context(self, nodes: list[NodeWithScore]) -> str:
+        """Convierte una lista de nodos recuperados en texto de contexto."""
         full_context = ""
         for node_with_score in nodes:
             node = node_with_score.node
             full_context += f"Score: {node_with_score.score:.4f}\n"
             full_context += f"Texto: {node.get_content()}\n"
             full_context += f"Metadatos: {node.metadata}\n\n"
-        
         return full_context
 
 

@@ -21,11 +21,8 @@ Decisión de diseño — nodo `respond` (Opción B):
 
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
-from typing import Annotated, Any, Literal
-
-from typing_extensions import NotRequired
+from typing import Annotated, Any, Literal, NotRequired
 
 from dotenv import load_dotenv
 from guardrails import Guard
@@ -244,25 +241,29 @@ def make_redmine_agent_node():
 # Nodo 3: RAG Query (LlamaIndex retrieval — solo recupera contexto)
 # ==============================================================================
 
-_rag_engine: RAGEngine | None = None
+
+# RAGEngine se inicializa en tiempo de importación del módulo (startup del servidor),
+# antes de que el event loop de LangGraph esté activo.
+# Esto evita que el I/O bloqueante de QdrantVectorStore.__init__ ocurra
+# durante la ejecución de un nodo async.
+_rag_engine: RAGEngine = RAGEngine()
+
 
 
 def get_rag_engine() -> RAGEngine:
-    global _rag_engine
-    if _rag_engine is None:
-        _rag_engine = RAGEngine()
     return _rag_engine
 
 
 def _rag_query_sync(question: str) -> str:
+    """Mantenido para compatibilidad con tests. No se usa en el grafo."""
     return get_rag_engine().query(question)
 
 
 async def rag_query(state: State):
     user_question = state["user_input"]
 
-    # Construcción + consulta síncrona de LlamaIndex aisladas en un Worker Thread
-    context = await asyncio.to_thread(_rag_query_sync, user_question)
+    # Búsqueda vectorial async nativa — no bloquea el event loop de LangGraph
+    context = await get_rag_engine().aquery(user_question)
 
     return {"rag_context": context}
 
