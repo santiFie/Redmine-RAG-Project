@@ -95,6 +95,6 @@ Los siguientes métodos de prueba (`test_faithfulness_threshold`, etc.) funciona
 ## 4. Tips para ser un Experto en Ragas
 
 1. **Ajuste de Umbrales:** Los umbrales (0.4, 0.5) en tu código son razonables para empezar. En un sistema maduro, querrás subirlos a 0.7 - 0.8. Si una métrica falla constantemente, no bajes el umbral; revisa si el problema es el chunking, el modelo de embedding o el prompt del LLM.
-2. **El "Juez" importa:** En tu código usas `llama-3.3-70b-versatile` como evaluador. Es excelente. Para evaluaciones de producción, el modelo juez siempre debe ser igual o más inteligente (más grande) que el modelo que genera la respuesta.
+2. **El "Juez" importa:** En tu código usas `openai/gpt-oss-120b` como evaluador. Es excelente. Para evaluaciones de producción, el modelo juez siempre debe ser igual o más inteligente (más grande) que el modelo que genera la respuesta.
 3. **Usa los reportes JSON:** Tu método `_save_results` guarda un `scores.json`. En un entorno experto, ese JSON se envía a LangSmith o a una herramienta de observabilidad para trackear cómo mejoran (o empeoran) las métricas a lo largo de las semanas con diferentes commits.
 4. **Iteración de Fixtures:** Cuando los usuarios en producción reporten una respuesta mala, crea un issue sintético en `REDMINE_ISSUES_FIXTURE` y agrega el caso a `RAGAS_TESTSET`. Esto es análogo a escribir un test unitario para un bug encontrado.

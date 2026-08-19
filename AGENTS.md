@@ -38,7 +38,7 @@ El estado central mantiene el contexto de la conversación y los resultados inte
 
 ## LLM providers — the big gotcha
 
-- `src/agent/graph.py` **hardcodes** providers regardless of config: `get_llm("groq", "llama-3.3-70b-versatile", ...)` in `analyze_intent`/`redmine_agent`/`respond`; `get_llm("nvidia", "openai/gpt-oss-120b", ...)` in `respond_general`. They need `GROQ_API_KEY` and `NVIDIA_API_KEY` (neither is in `.env.example`). Changing `LLM_PROVIDER` in `.env` will NOT change the agent.
+- `src/agent/graph.py` **hardcodes** providers regardless of config: `get_llm("groq", "openai/gpt-oss-120b", ...)` in `analyze_intent`/`redmine_agent`/`respond`; `get_llm("nvidia", "openai/gpt-oss-120b", ...)` in `respond_general`. They need `GROQ_API_KEY` and `NVIDIA_API_KEY` (neither is in `.env.example`). Changing `LLM_PROVIDER` in `.env` will NOT change the agent.
 - `src/utils/config.py` (pydantic settings, openai/anthropic/ollama) is not used by the runtime path — don't refactor assuming it is the source of truth.
 - There are **two** registries: `src/utils/get_llm.py` (langchain: ChatGroq/ChatNVIDIA) and `src/rag/utils/get_llm.py` (`_LLM_REGISTRY`, llama_index: Groq/NVIDIA/OpenAILike). The RAG engine uses the llama_index one. Keep them in sync.
 

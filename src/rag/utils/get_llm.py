@@ -6,7 +6,7 @@ load_dotenv()
 
 _LLM_REGISTRY = {
     "groq": lambda: Groq(
-        model=os.getenv("LLM_MODEL", "llama-3.3-70b-versatile"),
+        model=os.getenv("LLM_MODEL", "openai/gpt-oss-120b"),
         api_key=os.getenv("GROQ_API_KEY", ""),
     ),
     "nvidia": lambda: __import__("llama_index.llms.nvidia", fromlist=["NVIDIA"]).NVIDIA(

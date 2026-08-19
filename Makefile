@@ -25,7 +25,7 @@ dev: ## Inicia el servidor de desarrollo de LangGraph
 up: docker-up ## Levanta la infraestructura de Docker e inicia LangGraph Dev
 	@echo "Servicios Docker iniciados correctamente."
 	@echo "Iniciando servidor LangGraph Dev..."
-	$(LANGGRAPH) dev --host 127.0.0.1 --port 8123 --allow-blocking
+	# $(LANGGRAPH) dev --host 127.0.0.1 --port 8123 --allow-blocking
 
 down: docker-down ## Detiene los contenedores de Docker
 

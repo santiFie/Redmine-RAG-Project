@@ -1,0 +1,112 @@
+# ==============================================================================
+# docker-compose.override.yml
+# Extiende docker-compose.yml con los servicios de la capa de presentación:
+#   - langgraph-api: Servidor de ejecución del grafo LangGraph
+#   - bff:           Backend for Frontend (FastAPI + JWT + SSE proxy)
+#   - ui:            Frontend Angular servido por nginx
+#
+# Uso: docker compose up --build
+# (Docker Compose fusiona automáticamente override.yml con docker-compose.yml)
+# ==============================================================================
+
+networks:
+  langgraph_net:
+    external: true  # Red declarada en docker-compose.yml base
+
+services:
+
+  # ----------------------------------------------------------------------------
+  # LangGraph API — Servidor de ejecución del grafo
+  # Puerto: 8123  |  Health: http://localhost:8123/ok
+  # Requiere: postgres, qdrant (ya declarados en docker-compose.yml base)
+  # NOTA: El servidor lee langgraph.json desde /app para encontrar el grafo.
+  #       Las variables de entorno del .env raíz se cargan via env_file.
+  # ----------------------------------------------------------------------------
+  langgraph-api:
+    build:
+      context: .
+      dockerfile: langgraph_api/Dockerfile
+    container_name: langgraph_api_server
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Sobrescribir host de Postgres para usar el servicio de Docker Compose
+      POSTGRES_URI: postgresql://${REDMINE_DB_USER:-redmine}:${REDMINE_DB_PASSWORD:-redmine_secret}@postgres:5432/${REDMINE_DB_NAME:-redmine}
+      # Qdrant dentro de la red Docker
+      QDRANT_URL: http://qdrant:6333
+      # Redmine dentro de la red Docker
+      REDMINE_URL: http://redmine:3000
+    ports:
+      - "${LANGGRAPH_PORT:-8123}:8123"
+    volumes:
+      # Montar el directorio de checkpoints de LangGraph
+      - .langgraph_api:/app/.langgraph_api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    networks:
+      - langgraph_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8123/ok"]
+      interval: 30s
+      timeout: 15s
+      start_period: 60s
+      retries: 5
+
+  # ----------------------------------------------------------------------------
+  # BFF (Backend for Frontend) — FastAPI
+  # Puerto: 8000  |  Docs: http://localhost:8000/docs
+  # Requiere: langgraph-api
+  # ----------------------------------------------------------------------------
+  bff:
+    build:
+      context: ./bff
+      dockerfile: Dockerfile
+    container_name: bff_server
+    restart: unless-stopped
+    env_file:
+      - ./bff/.env
+    environment:
+      # Apuntar al servicio langgraph-api dentro de la red Docker
+      LANGGRAPH_API_URL: http://langgraph-api:8123
+      # Permitir requests desde el contenedor UI
+      ALLOWED_ORIGINS: http://localhost:4200,http://localhost:80,http://localhost,http://ui:80
+    ports:
+      - "${BFF_PORT:-8000}:8000"
+    depends_on:
+      langgraph-api:
+        condition: service_healthy
+    networks:
+      - langgraph_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 20s
+      timeout: 10s
+      start_period: 15s
+      retries: 3
+
+  # ----------------------------------------------------------------------------
+  # UI — Angular servida por nginx
+  # Puerto: 4200 (dev) / 80 (prod)  |  Proxy /api → bff:8000
+  # ----------------------------------------------------------------------------
+  ui:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+    container_name: ui_server
+    restart: unless-stopped
+    ports:
+      - "${UI_PORT:-4200}:80"
+    depends_on:
+      - bff
+    networks:
+      - langgraph_net
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:80"]
+      interval: 20s
+      timeout: 5s
+      start_period: 10s
+      retries: 3

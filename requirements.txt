@@ -11,10 +11,15 @@ langchain>=0.3.0
 langchain-core>=0.3.0
 langchain-community>=0.3.0
 langchain-mcp-adapters>=0.3.0   # adaptador MCP para integrar tools en LangGraph
+fastmcp                         # requerido: el grafo lanza server.py via .venv/bin/python
 langchain-openai>=0.2.0        # proveedor OpenAI (GPT-4o, etc.)
 langchain-anthropic>=0.2.0     # proveedor Anthropic (Claude)
 langchain-ollama>=0.2.0        # proveedor Ollama (modelos locales)
 langgraph-checkpoint-postgres>=2.0.0  # checkpointing persistente en Postgres
+langchain-groq==1.1.3                 # proveedor Groq (ChatGroq)
+langchain-nvidia-ai-endpoints==1.4.3  # proveedor NVIDIA (ChatNVIDIA)
+langchain-google-genai==4.3.4         # proveedor Google (Gemini)
+langchain-huggingface==1.2.2          # HuggingFaceEndpoint
 
 # --- LlamaIndex RAG ---
 llama-index>=0.11.0
@@ -25,6 +30,21 @@ llama-index-embeddings-openai>=0.3.0
 llama-index-embeddings-ollama>=0.3.0
 llama-index-vector-stores-qdrant>=0.3.0   # integración con Qdrant
 llama-index-readers-web>=0.2.0
+llama-index-embeddings-huggingface-api==0.5.0   # embeddings HF Inference (bge-m3)
+llama-index-llms-groq==0.5.0                    # proveedor Groq
+llama-index-llms-nvidia==0.5.0                  # proveedor NVIDIA
+llama-index-storage-docstore-postgres==0.5.0    # PostgresDocumentStore
+
+# --- Guardrails ---
+guardrails-ai>=0.10.2
+guardrails-ai-types>=0.5.0
+guardrails_hub_types>=0.0.4
+opentelemetry-api==1.37.0
+opentelemetry-sdk==1.37.0
+opentelemetry-exporter-otlp-proto-common==1.37.0
+opentelemetry-exporter-otlp-proto-grpc==1.37.0
+opentelemetry-exporter-otlp-proto-http==1.37.0
+opentelemetry-exporter-prometheus==0.58b0
 
 # --- Redmine API REST ---
 httpx>=0.27.0          # cliente HTTP async (recomendado)
@@ -32,7 +52,7 @@ requests>=2.32.0       # cliente HTTP sync (fallback / scripts simples)
 pydantic>=2.7.0        # validación de esquemas y modelos de datos
 
 # --- Vector DB ---
-qdrant-client>=1.9.0   # cliente oficial de Qdrant
+qdrant-client==1.18.0   # pin: 1.19+ rompe llama-index-vector-stores-qdrant (IDF_EMBEDDING_MODELS)
 
 # --- Configuración y entorno ---
 python-dotenv>=1.0.0   # carga de variables desde .env

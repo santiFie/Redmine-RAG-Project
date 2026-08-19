@@ -80,6 +80,29 @@ services:
       start_period: 60s
 
   # ----------------------------------------------------------------------------
+  # MCP Server — Redmine (subproceso Python en su propio container)
+  # ----------------------------------------------------------------------------
+  mcp_redmine:
+    build:
+      context: ./mcp/redmine  # Dockerfile propio: copia el servidor y sus deps
+      dockerfile: Dockerfile
+    container_name: mcp_redmine_server
+    restart: on-failure
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redmine:
+        condition: service_healthy
+    environment:
+      # Variables expuestas al servidor Python (usadas por server.py)
+      REDMINE_URL:     http://redmine_app:3000
+      REDMINE_API_KEY: ${REDMINE_API_KEY:-supersecretkey}
+    env_file:
+      - .env
+    networks:
+      - langgraph_net
+
+  # ----------------------------------------------------------------------------
   # Qdrant — Vector Database para LlamaIndex RAG
   # REST API: http://localhost:6333  |  gRPC: localhost:6334
   # Dashboard: http://localhost:6333/dashboard
@@ -98,10 +121,11 @@ services:
     networks:
       - langgraph_net
     healthcheck:
-      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:6333/healthz" ]
-      interval: 15s
+      test: [ "CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/6333' 2>/dev/null || exit 1" ]
+      interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 8
+      start_period: 20s
 
   pgadmin:
     image: dpage/pgadmin4
