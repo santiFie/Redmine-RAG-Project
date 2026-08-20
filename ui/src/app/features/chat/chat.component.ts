@@ -156,6 +156,9 @@ export class ChatComponent implements OnInit, OnDestroy {
 
       case 'node_start':
         this.currentNode.set(event.node);
+        this.messages.update(msgs =>
+          msgs.map(m => m.id === msgId ? { ...m, currentNode: event.node } : m)
+        );
         break;
 
       case 'tool_call': {
@@ -195,7 +198,7 @@ export class ChatComponent implements OnInit, OnDestroy {
 
   private finalizeStreaming(msgId: string): void {
     this.messages.update(msgs =>
-      msgs.map(m => m.id === msgId ? { ...m, isStreaming: false } : m)
+      msgs.map(m => m.id === msgId ? { ...m, isStreaming: false, currentNode: undefined } : m)
     );
     this.isStreaming.set(false);
     this.currentStreamingMsgId.set(null);

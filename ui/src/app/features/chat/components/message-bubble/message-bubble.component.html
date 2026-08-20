@@ -23,16 +23,17 @@
 
   <!-- Contenido -->
   <div class="bubble-body">
-    <div class="bubble-content" [class.markdown-content]="message.role === 'assistant'">
-      <!-- Renderizado de texto con soporte a saltos de línea -->
+    <div class="bubble-content" [class.markdown-content]="message.role === 'assistant' && !message.isStreaming"
+         [class.streaming-status]="message.isStreaming && message.role === 'assistant'">
       <span [innerHTML]="renderedContent"></span>
-      <!-- Cursor de typing -->
       @if (message.isStreaming) {
         <span class="typing-cursor" aria-hidden="true"></span>
       }
     </div>
-    <div class="bubble-meta">
-      {{ formatTime(message.timestamp) }}
-    </div>
+    @if (!message.isStreaming) {
+      <div class="bubble-meta">
+        {{ formatTime(message.timestamp) }}
+      </div>
+    }
   </div>
 </div>
