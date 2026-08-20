@@ -88,6 +88,10 @@ async def _stream_langgraph(
     }
 
     try:
+        # Estado para trackear el tamaño de los mensajes y filtrar por nodo
+        seen_lengths = {}
+        message_nodes = {}
+        
         async for chunk in client.runs.stream(
             thread_id,
             settings.langgraph_graph_id,
@@ -97,13 +101,34 @@ async def _stream_langgraph(
             event_type: str = chunk.event
             data = chunk.data
 
+            # ── Registro de metadatos (para filtrar por nodo) ───────────────
+            if event_type == "messages/metadata":
+                if isinstance(data, dict):
+                    for msg_id, meta in data.items():
+                        node = meta.get("metadata", {}).get("langgraph_node")
+                        if node:
+                            message_nodes[msg_id] = node
+
             # ── Streaming de tokens del LLM ─────────────────────────────────
-            if event_type == "messages/partial":
+            elif event_type == "messages/partial":
                 if isinstance(data, list):
                     for msg in data:
+                        msg_id = msg.get("id")
+                        if not msg_id:
+                            continue
+                            
+                        # Filtrar mensajes de nodos internos (reasoning/structured output)
+                        node = message_nodes.get(msg_id)
+                        if node in ("analyze_safe_query", "analyze_intent"):
+                            continue
+                            
                         content = _extract_content(msg)
                         if content:
-                            yield _sse("token", {"text": content})
+                            last_len = seen_lengths.get(msg_id, 0)
+                            if len(content) > last_len:
+                                delta = content[last_len:]
+                                seen_lengths[msg_id] = len(content)
+                                yield _sse("token", {"text": delta})
 
             # ── Actualizaciones de nodos del grafo ──────────────────────────
             elif event_type == "updates":

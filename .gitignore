@@ -29,6 +29,7 @@ ENV/
 
 # --- LangGraph / LangSmith ---
 .langgraph/
+.langgraph_api/
 langgraph_checkpoint.db
 
 # --- LlamaIndex ---

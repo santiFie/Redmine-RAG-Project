@@ -371,7 +371,6 @@ async def output_guardrail(state: State) -> State:
         validated_text = content
 
     return {
-        "messages": [AIMessage(content=validated_text)],
         "final_answer": validated_text,
     }
 

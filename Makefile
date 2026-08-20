@@ -17,7 +17,7 @@ docker-up: ## Levanta la infraestructura de Docker (PostgreSQL, Redmine, Qdrant)
 	docker compose up -d
 
 docker-down: ## Detiene la infraestructura de Docker
-	docker compose down
+	docker compose stop
 
 dev: ## Inicia el servidor de desarrollo de LangGraph
 	$(LANGGRAPH) dev --host 127.0.0.1 --port 8123 --allow-blocking
