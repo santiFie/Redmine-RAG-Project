@@ -1,0 +1,60 @@
+<div class="tool-indicator" [class.expanded]="isExpanded()" [class.done]="step.result">
+  <!-- Cabecera clickeable -->
+  <button
+    class="tool-header"
+    (click)="isExpanded.set(!isExpanded())"
+    [attr.aria-expanded]="isExpanded()"
+    type="button"
+  >
+    <!-- Ícono de estado -->
+    <span class="tool-status-icon" [class.spinning]="!step.result">
+      @if (step.result) {
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+      } @else {
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="animate-spin">
+          <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+        </svg>
+      }
+    </span>
+
+    <!-- Nombre y estado -->
+    <div class="tool-info">
+      <span class="tool-emoji">{{ getIcon() }}</span>
+      <span class="tool-name">{{ getLabel() }}</span>
+      @if (step.result) {
+        <span class="tool-duration">{{ getDuration() }}</span>
+      } @else {
+        <span class="tool-running">ejecutando…</span>
+      }
+    </div>
+
+    <!-- Chevron -->
+    <svg class="tool-chevron" width="14" height="14" viewBox="0 0 24 24"
+         fill="none" stroke="currentColor" stroke-width="2">
+      <polyline points="6 9 12 15 18 9"/>
+    </svg>
+  </button>
+
+  <!-- Detalles expandibles -->
+  @if (isExpanded()) {
+    <div class="tool-details animate-fade-slide-up">
+      <!-- Args de la herramienta -->
+      @if (hasArgs()) {
+        <div class="detail-section">
+          <span class="detail-label">Argumentos</span>
+          <pre class="detail-code">{{ formatArgs() }}</pre>
+        </div>
+      }
+
+      <!-- Resultado -->
+      @if (step.result) {
+        <div class="detail-section">
+          <span class="detail-label">Resultado</span>
+          <pre class="detail-code result-code">{{ step.result.content }}</pre>
+        </div>
+      }
+    </div>
+  }
+</div>
