@@ -71,3 +71,6 @@ htmlcov/
 # --- Logs ---
 *.log
 logs/
+
+# --- AGENTS ---
+opencode.json
