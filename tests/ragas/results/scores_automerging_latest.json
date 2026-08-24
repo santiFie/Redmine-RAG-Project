@@ -1,0 +1,8 @@
+{
+  "faithfulness": 0.9629629629629629,
+  "answer_relevancy": 0.7889553125985124,
+  "context_precision": 0.8055555555152777,
+  "context_recall": 1.0,
+  "timestamp": "20260824T113621Z",
+  "suite": "automerging"
+}

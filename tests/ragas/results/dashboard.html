@@ -14,103 +14,144 @@
     --border:   #252a40;
     --accent:   #6c63ff;
     --accent2:  #00d4aa;
+    --accent3:  #f59e0b;
+    --accent4:  #e879f9;
     --danger:   #ff5e7e;
     --warn:     #f5a623;
     --text:     #e8eaf6;
     --muted:    #7b82a6;
     --pass:     #00c896;
     --fail:     #ff5e7e;
-    --r: 12px;
-    --tr: 0.18s ease;
+    --r:        12px;
+    --tr:       0.18s ease;
   }
-  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:0 0 60px}
-  /* ── Header ── */
-  header{background:linear-gradient(135deg,#1a1e30 0%,#0d0f1a 100%);border-bottom:1px solid var(--border);padding:28px 40px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:100;backdrop-filter:blur(12px)}
-  .logo{width:40px;height:40px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
-  .header-text h1{font-size:1.3rem;font-weight:700;letter-spacing:-.3px}
-  .header-text p{font-size:.8rem;color:var(--muted);margin-top:2px}
-  .header-meta{margin-left:auto;display:flex;align-items:center;gap:12px}
-  .badge{font-size:.72rem;font-weight:600;padding:4px 10px;border-radius:20px;border:1px solid}
-  .badge-pass{color:var(--pass);border-color:var(--pass);background:rgba(0,200,150,.08)}
-  .badge-fail{color:var(--fail);border-color:var(--fail);background:rgba(255,94,126,.08)}
-  .ts{font-size:.72rem;color:var(--muted)}
-  /* ── Layout ── */
-  main{max-width:1300px;margin:0 auto;padding:36px 40px;display:flex;flex-direction:column;gap:36px}
-  section-title{display:block;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:16px}
-  /* ── Metric cards ── */
-  .metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
-  .metric-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:22px 24px;position:relative;overflow:hidden;transition:transform var(--tr),box-shadow var(--tr)}
-  .metric-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
-  .metric-card.pass::before{background:linear-gradient(90deg,var(--pass),var(--accent2))}
-  .metric-card.fail::before{background:linear-gradient(90deg,var(--fail),var(--warn))}
-  .metric-card.na::before{background:var(--border)}
-  .metric-card:hover{transform:translateY(-3px);box-shadow:0 12px 40px rgba(0,0,0,.35)}
-  .metric-name{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px}
-  .metric-value{font-size:2.4rem;font-weight:700;line-height:1;font-family:'JetBrains Mono',monospace}
-  .metric-value.pass-color{color:var(--pass)}
-  .metric-value.fail-color{color:var(--fail)}
-  .metric-value.na-color{color:var(--muted)}
-  .metric-threshold{font-size:.72rem;color:var(--muted);margin-top:8px}
-  .metric-threshold span{color:var(--text);font-weight:500}
-  .progress-bar{height:4px;background:rgba(255,255,255,.08);border-radius:4px;margin-top:14px;overflow:hidden}
-  .progress-fill{height:100%;border-radius:4px;transition:width .6s ease}
-  .progress-fill.pass{background:linear-gradient(90deg,var(--accent2),var(--pass))}
-  .progress-fill.fail{background:linear-gradient(90deg,var(--fail),var(--warn))}
-  /* ── Section divider ── */
-  .section-header{display:flex;align-items:center;gap:12px;margin-bottom:20px}
-  .section-header h2{font-size:1rem;font-weight:600}
-  .section-header .pill{font-size:.7rem;background:rgba(108,99,255,.15);color:var(--accent);border:1px solid rgba(108,99,255,.3);border-radius:20px;padding:3px 10px;font-weight:600}
-  /* ── Sample cards ── */
-  .samples-list{display:flex;flex-direction:column;gap:16px}
-  .sample-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);overflow:hidden}
-  .sample-header{display:flex;align-items:center;gap:14px;padding:16px 22px;cursor:pointer;transition:background var(--tr);user-select:none}
-  .sample-header:hover{background:rgba(255,255,255,.03)}
-  .sample-index{width:30px;height:30px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;flex-shrink:0}
-  .sample-question{flex:1;font-size:.9rem;font-weight:500;line-height:1.4}
-  .sample-scores-mini{display:flex;gap:8px;flex-wrap:wrap;flex-shrink:0}
-  .score-chip{font-size:.7rem;font-weight:600;padding:3px 9px;border-radius:6px;font-family:'JetBrains Mono',monospace}
-  .score-chip.pass{background:rgba(0,200,150,.12);color:var(--pass);border:1px solid rgba(0,200,150,.25)}
-  .score-chip.fail{background:rgba(255,94,126,.12);color:var(--fail);border:1px solid rgba(255,94,126,.25)}
-  .score-chip.na{background:rgba(123,130,166,.1);color:var(--muted);border:1px solid var(--border)}
-  .chevron{color:var(--muted);transition:transform var(--tr);flex-shrink:0;font-size:.85rem}
-  .chevron.open{transform:rotate(180deg)}
-  .sample-body{display:none;border-top:1px solid var(--border)}
-  .sample-body.open{display:block}
-  .sample-body-inner{padding:20px 22px;display:flex;flex-direction:column;gap:18px}
-  /* ── Text blocks ── */
-  .text-block{background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden}
-  .text-block-label{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:8px 14px;background:rgba(255,255,255,.03);border-bottom:1px solid var(--border);color:var(--muted);display:flex;align-items:center;gap:6px}
-  .text-block-label .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
-  .dot-q{background:var(--accent)}
-  .dot-r{background:var(--accent2)}
-  .dot-c{background:var(--warn)}
-  .dot-a{background:#e879f9}
-  .text-block-content{padding:12px 14px;font-size:.82rem;line-height:1.65;color:var(--text);white-space:pre-wrap;word-break:break-word}
-  .contexts-list{display:flex;flex-direction:column;gap:8px;padding:12px 14px}
-  .context-item{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:10px 12px;font-size:.78rem;line-height:1.6;color:#c5c9e0;font-family:'JetBrains Mono',monospace;white-space:pre-wrap;word-break:break-word}
-  .context-item:nth-child(1){border-left:3px solid var(--warn)}
-  .context-item:nth-child(2){border-left:3px solid #f97316}
-  .context-item:nth-child(3){border-left:3px solid #a78bfa}
-  /* ── Per-sample metric row ── */
-  .sample-metrics-row{display:flex;gap:10px;flex-wrap:wrap}
-  .sample-metric-chip{flex:1;min-width:130px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px}
-  .smc-name{font-size:.62rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700;margin-bottom:4px}
-  .smc-value{font-size:1.2rem;font-weight:700;font-family:'JetBrains Mono',monospace}
-  .smc-value.pass{color:var(--pass)}
-  .smc-value.fail{color:var(--fail)}
-  .smc-value.na{color:var(--muted)}
-  /* ── Empty state ── */
-  .empty{text-align:center;padding:80px 40px;color:var(--muted)}
-  .empty p{margin-top:10px;font-size:.85rem}
-  /* ── Error ── */
-  .error-box{background:rgba(255,94,126,.08);border:1px solid rgba(255,94,126,.3);border-radius:var(--r);padding:20px 24px;color:var(--fail);font-size:.85rem}
-  /* ── Footer ── */
-  footer{text-align:center;padding:40px;font-size:.72rem;color:var(--muted)}
-  /* ── Scrollbar ── */
-  ::-webkit-scrollbar{width:6px;height:6px}
-  ::-webkit-scrollbar-track{background:var(--bg)}
-  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+  *,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; padding: 0 0 60px; }
+
+  /* Header */
+  header { background: linear-gradient(135deg, #1a1e30 0%, #0d0f1a 100%); border-bottom: 1px solid var(--border); padding: 28px 40px; display: flex; align-items: center; gap: 16px; position: sticky; top: 0; z-index: 100; backdrop-filter: blur(12px); }
+  .logo { width: 40px; height: 40px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+  .header-text h1 { font-size: 1.3rem; font-weight: 700; letter-spacing: -.3px; }
+  .header-text p { font-size: .8rem; color: var(--muted); margin-top: 2px; }
+  .header-meta { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+  .badge { font-size: .72rem; font-weight: 600; padding: 4px 10px; border-radius: 20px; border: 1px solid; }
+  .badge-pass { color: var(--pass); border-color: var(--pass); background: rgba(0,200,150,.08); }
+  .badge-fail { color: var(--fail); border-color: var(--fail); background: rgba(255,94,126,.08); }
+  .badge-neutral { color: var(--muted); border-color: var(--border); background: rgba(123,130,166,.08); }
+  .ts { font-size: .72rem; color: var(--muted); }
+
+  /* Layout */
+  main { max-width: 1400px; margin: 0 auto; padding: 36px 40px; display: flex; flex-direction: column; gap: 36px; }
+  .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+  .section-header h2 { font-size: 1rem; font-weight: 600; }
+  .section-header .pill { font-size: .7rem; background: rgba(108,99,255,.15); color: var(--accent); border: 1px solid rgba(108,99,255,.3); border-radius: 20px; padding: 3px 10px; font-weight: 600; }
+
+  /* Tabla Comparativa */
+  .compare-wrapper { background: var(--card); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; }
+  .compare-header { padding: 20px 24px 0; }
+  .compare-title { font-size: 1rem; font-weight: 600; }
+  .compare-subtitle { font-size: .78rem; color: var(--muted); margin-top: 4px; }
+  .compare-table-wrap { overflow-x: auto; padding: 20px 24px 24px; }
+  table.compare { width: 100%; border-collapse: collapse; }
+  table.compare th, table.compare td { padding: 10px 16px; text-align: left; white-space: nowrap; }
+  table.compare thead th { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+  table.compare thead th.col-section { text-align: center; min-width: 140px; }
+  table.compare tbody tr { border-bottom: 1px solid rgba(37,42,64,.6); transition: background var(--tr); }
+  table.compare tbody tr:last-child { border-bottom: none; }
+  table.compare tbody tr:hover { background: rgba(255,255,255,.02); }
+  td.metric-name-cell { font-size: .8rem; font-weight: 600; }
+  td.metric-name-cell small { display: block; font-size: .68rem; color: var(--muted); font-weight: 400; margin-top: 2px; white-space: normal; max-width: 220px; line-height: 1.4; }
+  .compare-cell { display: flex; align-items: center; justify-content: center; gap: 6px; }
+  .compare-val { font-family: 'JetBrains Mono', monospace; font-size: .88rem; font-weight: 600; }
+  .compare-val.pass { color: var(--pass); }
+  .compare-val.fail { color: var(--fail); }
+  .compare-val.na   { color: var(--muted); }
+  .star { font-size: .75rem; color: var(--accent3); }
+  .section-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+
+  /* Tabs */
+  .tabs-nav { display: flex; gap: 4px; border-bottom: 1px solid var(--border); overflow-x: auto; }
+  .tab-btn { background: none; border: none; color: var(--muted); font-family: 'Inter', sans-serif; font-size: .85rem; font-weight: 500; padding: 12px 20px; cursor: pointer; border-bottom: 2px solid transparent; transition: color var(--tr), border-color var(--tr); white-space: nowrap; display: flex; align-items: center; gap: 8px; }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--text); border-bottom-color: var(--accent); }
+  .tab-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .tab-status { font-size: .65rem; font-weight: 700; padding: 2px 7px; border-radius: 10px; }
+  .tab-status.pass { background: rgba(0,200,150,.15); color: var(--pass); }
+  .tab-status.fail { background: rgba(255,94,126,.15); color: var(--fail); }
+  .tab-status.na   { background: rgba(123,130,166,.1); color: var(--muted); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* Metric cards */
+  .metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+  .metric-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--r); padding: 22px 24px; position: relative; overflow: hidden; transition: transform var(--tr), box-shadow var(--tr); }
+  .metric-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+  .metric-card.pass::before { background: linear-gradient(90deg, var(--pass), var(--accent2)); }
+  .metric-card.fail::before { background: linear-gradient(90deg, var(--fail), var(--warn)); }
+  .metric-card.na::before   { background: var(--border); }
+  .metric-card:hover { transform: translateY(-3px); box-shadow: 0 12px 40px rgba(0,0,0,.35); }
+  .metric-name { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 10px; }
+  .metric-value { font-size: 2.4rem; font-weight: 700; line-height: 1; font-family: 'JetBrains Mono', monospace; }
+  .metric-value.pass-color { color: var(--pass); }
+  .metric-value.fail-color { color: var(--fail); }
+  .metric-value.na-color   { color: var(--muted); }
+  .metric-threshold { font-size: .72rem; color: var(--muted); margin-top: 8px; }
+  .metric-threshold span { color: var(--text); font-weight: 500; }
+  .progress-bar { height: 4px; background: rgba(255,255,255,.08); border-radius: 4px; margin-top: 14px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 4px; transition: width .6s ease; }
+  .progress-fill.pass { background: linear-gradient(90deg, var(--accent2), var(--pass)); }
+  .progress-fill.fail { background: linear-gradient(90deg, var(--fail), var(--warn)); }
+
+  /* Panel vacío */
+  .panel-empty { background: var(--card); border: 1px solid var(--border); border-radius: var(--r); padding: 60px 40px; text-align: center; color: var(--muted); grid-column: 1/-1; }
+  .panel-empty .empty-icon { font-size: 2.4rem; margin-bottom: 14px; }
+  .panel-empty p { font-size: .87rem; line-height: 1.8; }
+  .panel-empty code { font-family: 'JetBrains Mono', monospace; font-size: .82rem; color: var(--accent2); background: rgba(0,212,170,.08); padding: 2px 7px; border-radius: 4px; }
+
+  /* Sample cards */
+  .samples-list { display: flex; flex-direction: column; gap: 16px; }
+  .sample-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--r); overflow: hidden; }
+  .sample-header { display: flex; align-items: center; gap: 14px; padding: 16px 22px; cursor: pointer; transition: background var(--tr); user-select: none; }
+  .sample-header:hover { background: rgba(255,255,255,.03); }
+  .sample-index { width: 30px; height: 30px; background: linear-gradient(135deg, var(--accent), var(--accent2)); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: .75rem; font-weight: 700; flex-shrink: 0; }
+  .sample-question { flex: 1; font-size: .9rem; font-weight: 500; line-height: 1.4; }
+  .sample-scores-mini { display: flex; gap: 8px; flex-wrap: wrap; flex-shrink: 0; }
+  .score-chip { font-size: .7rem; font-weight: 600; padding: 3px 9px; border-radius: 6px; font-family: 'JetBrains Mono', monospace; }
+  .score-chip.pass { background: rgba(0,200,150,.12); color: var(--pass); border: 1px solid rgba(0,200,150,.25); }
+  .score-chip.fail { background: rgba(255,94,126,.12); color: var(--fail); border: 1px solid rgba(255,94,126,.25); }
+  .score-chip.na   { background: rgba(123,130,166,.1); color: var(--muted); border: 1px solid var(--border); }
+  .chevron { color: var(--muted); transition: transform var(--tr); flex-shrink: 0; font-size: .85rem; }
+  .chevron.open { transform: rotate(180deg); }
+  .sample-body { display: none; border-top: 1px solid var(--border); }
+  .sample-body.open { display: block; }
+  .sample-body-inner { padding: 20px 22px; display: flex; flex-direction: column; gap: 18px; }
+  .text-block { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .text-block-label { font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; padding: 8px 14px; background: rgba(255,255,255,.03); border-bottom: 1px solid var(--border); color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .text-block-label .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .dot-q { background: var(--accent); }
+  .dot-r { background: var(--accent2); }
+  .dot-c { background: var(--warn); }
+  .dot-a { background: #e879f9; }
+  .text-block-content { padding: 12px 14px; font-size: .82rem; line-height: 1.65; color: var(--text); white-space: pre-wrap; word-break: break-word; }
+  .contexts-list { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; }
+  .context-item { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; font-size: .78rem; line-height: 1.6; color: #c5c9e0; font-family: 'JetBrains Mono', monospace; white-space: pre-wrap; word-break: break-word; }
+  .context-item:nth-child(1) { border-left: 3px solid var(--warn); }
+  .context-item:nth-child(2) { border-left: 3px solid #f97316; }
+  .context-item:nth-child(3) { border-left: 3px solid #a78bfa; }
+  .sample-metrics-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .sample-metric-chip { flex: 1; min-width: 130px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; }
+  .smc-name  { font-size: .62rem; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); font-weight: 700; margin-bottom: 4px; }
+  .smc-value { font-size: 1.2rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+  .smc-value.pass { color: var(--pass); }
+  .smc-value.fail { color: var(--fail); }
+  .smc-value.na   { color: var(--muted); }
+
+  /* Error */
+  .error-box { background: rgba(255,94,126,.08); border: 1px solid rgba(255,94,126,.3); border-radius: var(--r); padding: 20px 24px; color: var(--fail); font-size: .85rem; }
+  footer { text-align: center; padding: 40px; font-size: .72rem; color: var(--muted); }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 </style>
 </head>
 <body>
@@ -122,7 +163,7 @@
     <p>Ragas · LlamaIndex · AI as a Judge</p>
   </div>
   <div class="header-meta">
-    <span id="overall-badge" class="badge">—</span>
+    <span id="overall-badge" class="badge badge-neutral">—</span>
     <span id="ts-badge" class="ts">—</span>
   </div>
 </header>
@@ -130,208 +171,285 @@
 <main>
   <div id="error-container"></div>
 
-  <!-- Aggregate metrics -->
-  <div>
-    <section-title id="agg-title">Métricas Agregadas</section-title>
-    <div class="metric-grid" id="metric-grid"></div>
+  <!-- Tabla Comparativa -->
+  <div class="compare-wrapper">
+    <div class="compare-header">
+      <div class="compare-title">Comparativa de Secciones</div>
+      <div class="compare-subtitle">Resumen de métricas por estrategia de retrieval &middot; ★ = mejor score en cada métrica</div>
+    </div>
+    <div class="compare-table-wrap">
+      <table class="compare">
+        <thead>
+          <tr>
+            <th>Métrica</th>
+            <th class="col-section"><span class="section-dot" style="background:var(--accent)"></span>Base</th>
+            <th class="col-section"><span class="section-dot" style="background:var(--accent2)"></span>AutoMerging</th>
+            <th class="col-section"><span class="section-dot" style="background:var(--accent3)"></span>Hybrid</th>
+            <th class="col-section"><span class="section-dot" style="background:var(--accent4)"></span>Metadata Filter</th>
+          </tr>
+        </thead>
+        <tbody id="compare-tbody">
+          <tr><td colspan="5" style="text-align:center;color:var(--muted);padding:30px;font-size:.85rem">Cargando resultados…</td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 
-  <!-- Per-sample breakdown -->
+  <!-- Tabs por Sección -->
   <div>
-    <div class="section-header">
-      <h2>Muestras de Evaluación</h2>
-      <span class="pill" id="sample-count-pill">0 muestras</span>
+    <nav class="tabs-nav" role="tablist">
+      <button class="tab-btn active" id="tab-base" role="tab" onclick="switchTab('base')" aria-selected="true">
+        <span class="tab-dot" style="background:var(--accent)"></span>Base
+        <span class="tab-status na" id="ts-base">—</span>
+      </button>
+      <button class="tab-btn" id="tab-automerging" role="tab" onclick="switchTab('automerging')" aria-selected="false">
+        <span class="tab-dot" style="background:var(--accent2)"></span>AutoMerging
+        <span class="tab-status na" id="ts-automerging">—</span>
+      </button>
+      <button class="tab-btn" id="tab-hybrid" role="tab" onclick="switchTab('hybrid')" aria-selected="false">
+        <span class="tab-dot" style="background:var(--accent3)"></span>Hybrid
+        <span class="tab-status na" id="ts-hybrid">—</span>
+      </button>
+      <button class="tab-btn" id="tab-metadata_filter" role="tab" onclick="switchTab('metadata_filter')" aria-selected="false">
+        <span class="tab-dot" style="background:var(--accent4)"></span>Metadata Filter
+        <span class="tab-status na" id="ts-metadata_filter">—</span>
+      </button>
+    </nav>
+
+    <div id="panel-base" class="tab-panel active" style="padding-top:28px">
+      <div class="metric-grid" id="grid-base"></div>
+      <div id="samples-section" style="margin-top:32px;display:none">
+        <div class="section-header">
+          <h2>Muestras de Evaluación</h2>
+          <span class="pill" id="sample-count-pill">0 muestras</span>
+        </div>
+        <div class="samples-list" id="samples-list"></div>
+      </div>
     </div>
-    <div class="samples-list" id="samples-list"></div>
+
+    <div id="panel-automerging" class="tab-panel" style="padding-top:28px">
+      <div class="metric-grid" id="grid-automerging"></div>
+    </div>
+
+    <div id="panel-hybrid" class="tab-panel" style="padding-top:28px">
+      <div class="metric-grid" id="grid-hybrid"></div>
+    </div>
+
+    <div id="panel-metadata_filter" class="tab-panel" style="padding-top:28px">
+      <div class="metric-grid" id="grid-metadata_filter"></div>
+    </div>
   </div>
 </main>
 
-<footer>
-  RAG Evaluation Dashboard · generado por <strong>test_rag_ragas.py</strong>
-</footer>
+<footer>RAG Evaluation Dashboard &middot; generado por <strong>test_rag_ragas.py</strong></footer>
 
 <script>
-const METRIC_LABELS = {
-  faithfulness:      'Faithfulness',
-  answer_relevancy:  'Answer Relevancy',
-  context_precision: 'Context Precision',
-  context_recall:    'Context Recall',
-};
-
+const THRESHOLDS = { faithfulness: 0.5, answer_relevancy: 0.5, context_precision: 0.4, context_recall: 0.4 };
+const METRIC_LABELS = { faithfulness: 'Faithfulness', answer_relevancy: 'Answer Relevancy', context_precision: 'Context Precision', context_recall: 'Context Recall' };
 const METRIC_DESC = {
   faithfulness:      'La respuesta no alucina datos ajenos al contexto recuperado.',
   answer_relevancy:  'La respuesta es pertinente a la pregunta formulada.',
   context_precision: 'Los contextos recuperados son relevantes para la pregunta.',
   context_recall:    'La respuesta de referencia puede derivarse del contexto.',
 };
+const SECTIONS = [
+  { id: 'base',            label: 'Base',            file: 'scores_latest.json',                 color: 'var(--accent)'  },
+  { id: 'automerging',     label: 'AutoMerging',     file: 'scores_automerging_latest.json',     color: 'var(--accent2)' },
+  { id: 'hybrid',          label: 'Hybrid',          file: 'scores_hybrid_latest.json',          color: 'var(--accent3)' },
+  { id: 'metadata_filter', label: 'Metadata Filter', file: 'scores_metadata_filter_latest.json', color: 'var(--accent4)' },
+];
+const sectionData = {};
 
 function fmt(v) {
-  if (v === null || v === undefined || isNaN(v)) return 'N/A';
+  if (v === null || v === undefined || (typeof v === 'number' && isNaN(v))) return 'N/A';
   return (v * 100).toFixed(1) + '%';
 }
-
-function scoreClass(v, threshold) {
-  if (v === null || v === undefined || isNaN(v)) return 'na';
-  return v >= threshold ? 'pass' : 'fail';
+function scoreClass(v, t) {
+  if (v === null || v === undefined || (typeof v === 'number' && isNaN(v))) return 'na';
+  return v >= t ? 'pass' : 'fail';
+}
+function escHtml(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function showError(msg) {
+  document.getElementById('error-container').innerHTML = '<div class="error-box">&#9888; ' + escHtml(msg) + '</div>';
 }
 
-function renderMetricGrid(scores, thresholds) {
-  const grid = document.getElementById('metric-grid');
+function renderMetricGrid(containerId, scores) {
+  const grid = document.getElementById(containerId);
+  if (!grid) return;
+  if (!scores) {
+    const sec = SECTIONS.find(s => containerId === 'grid-' + s.id);
+    grid.innerHTML = '<div class="panel-empty"><div class="empty-icon">📂</div><p>No hay datos para esta sección.<br>Ejecutá <code>make test-ragas</code> para generar ' + (sec ? '<code>' + sec.file + '</code>' : 'el archivo de scores') + '.</p></div>';
+    return;
+  }
   grid.innerHTML = '';
-  Object.entries(METRIC_LABELS).forEach(([key, label]) => {
-    const v = scores[key];
-    const t = thresholds[key] ?? 0.5;
-    const cls = scoreClass(v, t);
-    const pct = (v !== null && !isNaN(v)) ? Math.min(v * 100, 100) : 0;
-    grid.innerHTML += `
-      <div class="metric-card ${cls}" title="${METRIC_DESC[key]}">
-        <div class="metric-name">${label}</div>
-        <div class="metric-value ${cls}-color">${fmt(v)}</div>
-        <div class="metric-threshold">Umbral: <span>${fmt(t)}</span></div>
-        <div class="progress-bar"><div class="progress-fill ${cls}" style="width:${pct}%"></div></div>
-      </div>`;
+  Object.entries(METRIC_LABELS).forEach(function([key, label]) {
+    var v = scores[key], t = THRESHOLDS[key] ?? 0.5, cls = scoreClass(v, t);
+    var pct = (v !== null && v !== undefined && !isNaN(v)) ? Math.min(v * 100, 100) : 0;
+    grid.innerHTML += '<div class="metric-card ' + cls + '" title="' + METRIC_DESC[key] + '">' +
+      '<div class="metric-name">' + label + '</div>' +
+      '<div class="metric-value ' + cls + '-color">' + fmt(v) + '</div>' +
+      '<div class="metric-threshold">Umbral: <span>' + fmt(t) + '</span></div>' +
+      '<div class="progress-bar"><div class="progress-fill ' + cls + '" style="width:' + pct + '%"></div></div>' +
+      '</div>';
   });
 }
 
-function chipHtml(key, v, threshold) {
-  const cls = scoreClass(v, threshold);
-  const short = METRIC_LABELS[key]?.split(' ')[0] ?? key;
-  return `<span class="score-chip ${cls}" title="${METRIC_LABELS[key] ?? key}">${short}: ${fmt(v)}</span>`;
-}
-
-function renderSamples(samples, thresholds) {
-  const list = document.getElementById('samples-list');
-  list.innerHTML = '';
-  if (!samples || samples.length === 0) {
-    list.innerHTML = `<div class="empty">
-      <div style="font-size:2rem">🔍</div>
-      <p>No hay muestras disponibles. Re-ejecuta los tests para generar el reporte completo.</p>
-    </div>`;
-    document.getElementById('sample-count-pill').textContent = '0 muestras';
+function renderCompareTable() {
+  var tbody = document.getElementById('compare-tbody');
+  var hasSome = SECTIONS.some(function(s) { return sectionData[s.id] != null; });
+  if (!hasSome) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:30px;font-size:.85rem">Ejecutá <code style="font-family:JetBrains Mono,monospace;color:var(--accent2)">make test-ragas</code> para generar los resultados.</td></tr>';
     return;
   }
-  document.getElementById('sample-count-pill').textContent = `${samples.length} muestras`;
+  var html = '';
+  Object.entries(METRIC_LABELS).forEach(function([key, label]) {
+    var t = THRESHOLDS[key] ?? 0.5;
+    var bestVal = -Infinity;
+    SECTIONS.forEach(function(s) {
+      var d = sectionData[s.id]; if (!d) return;
+      var v = d[key]; if (v != null && !isNaN(v) && v > bestVal) bestVal = v;
+    });
+    html += '<tr><td class="metric-name-cell">' + label + '<small>' + METRIC_DESC[key] + '</small></td>';
+    SECTIONS.forEach(function(s) {
+      var d = sectionData[s.id];
+      if (d === undefined) { html += '<td style="text-align:center"><span class="compare-val na">—</span></td>'; return; }
+      if (!d) { html += '<td style="text-align:center"><span class="compare-val na" title="Sin datos">N/D</span></td>'; return; }
+      var v = d[key], cls = scoreClass(v, t);
+      var isBest = (v != null && !isNaN(v) && Math.abs(v - bestVal) < 1e-9 && bestVal > -Infinity);
+      html += '<td style="text-align:center"><div class="compare-cell"><span class="compare-val ' + cls + '" title="' + label + ': ' + fmt(v) + ' (umbral: ' + fmt(t) + ')">' + fmt(v) + '</span>' + (isBest ? '<span class="star" title="Mejor en esta métrica">&#9733;</span>' : '') + '</div></td>';
+    });
+    html += '</tr>';
+  });
+  // Fila estado global
+  html += '<tr style="border-top:1px solid var(--border)"><td style="font-size:.75rem;font-weight:600;color:var(--muted);padding-top:16px">Estado global</td>';
+  SECTIONS.forEach(function(s) {
+    var d = sectionData[s.id];
+    if (d === undefined || !d) { html += '<td style="text-align:center;padding-top:16px"><span class="badge badge-neutral">Sin datos</span></td>'; return; }
+    var allPass = Object.entries(THRESHOLDS).every(function([k, t]) { var v = d[k]; return v != null && !isNaN(v) && v >= t; });
+    html += '<td style="text-align:center;padding-top:16px"><span class="badge ' + (allPass ? 'badge-pass' : 'badge-fail') + '">' + (allPass ? '&#10003; Pasa' : '&#10007; Falla') + '</span></td>';
+  });
+  html += '</tr>';
+  tbody.innerHTML = html;
+}
 
-  samples.forEach((s, i) => {
-    const scores = s.scores ?? {};
-    const chipsHtml = Object.entries(METRIC_LABELS).map(([k]) =>
-      chipHtml(k, scores[k], thresholds[k] ?? 0.5)
-    ).join('');
+function updateHeaderBadge() {
+  var withData = SECTIONS.filter(function(s) { return sectionData[s.id]; });
+  if (!withData.length) { document.getElementById('overall-badge').textContent = '—'; return; }
+  var allPass = withData.every(function(s) {
+    var d = sectionData[s.id];
+    return Object.entries(THRESHOLDS).every(function([k, t]) { var v = d[k]; return v != null && !isNaN(v) && v >= t; });
+  });
+  var badge = document.getElementById('overall-badge');
+  badge.textContent = allPass ? '✓ Todas las secciones pasan' : '✗ Hay secciones con fallos';
+  badge.className = 'badge ' + (allPass ? 'badge-pass' : 'badge-fail');
+}
 
-    const ctxHtml = (s.reference_contexts ?? []).map(c =>
-      `<div class="context-item">${escHtml(c)}</div>`
-    ).join('') || '<div class="context-item" style="color:var(--muted)">Sin contextos de referencia</div>';
+function updateTabStatus(sectionId, scores) {
+  var chip = document.getElementById('ts-' + sectionId); if (!chip) return;
+  if (!scores) { chip.textContent = 'Sin datos'; chip.className = 'tab-status na'; return; }
+  var allPass = Object.entries(THRESHOLDS).every(function([k, t]) { var v = scores[k]; return v != null && !isNaN(v) && v >= t; });
+  chip.textContent = allPass ? 'OK' : 'Fallo';
+  chip.className = 'tab-status ' + (allPass ? 'pass' : 'fail');
+}
 
-    const retrivedHtml = (s.retrieved_contexts?.length)
-      ? s.retrieved_contexts.map(c => `<div class="context-item">${escHtml(c)}</div>`).join('')
-      : `<div class="context-item" style="color:var(--muted)">No disponible (re-ejecuta con query_engine activo)</div>`;
+function switchTab(sectionId) {
+  document.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+  document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); b.setAttribute('aria-selected','false'); });
+  var panel = document.getElementById('panel-' + sectionId); if (panel) panel.classList.add('active');
+  var btn = document.getElementById('tab-' + sectionId); if (btn) { btn.classList.add('active'); btn.setAttribute('aria-selected','true'); }
+}
 
-    const responseHtml = s.response
-      ? `<div class="text-block"><div class="text-block-label"><span class="dot dot-a"></span>Respuesta generada por el RAG</div><div class="text-block-content">${escHtml(s.response)}</div></div>`
-      : '';
-
-    const perMetrics = Object.entries(METRIC_LABELS).map(([k, label]) => {
-      const v = scores[k];
-      const cls = scoreClass(v, thresholds[k] ?? 0.5);
-      return `<div class="sample-metric-chip">
-        <div class="smc-name">${label}</div>
-        <div class="smc-value ${cls}">${fmt(v)}</div>
-      </div>`;
+function renderSamples(samples) {
+  var section = document.getElementById('samples-section');
+  var list = document.getElementById('samples-list');
+  if (!samples || !samples.length) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+  document.getElementById('sample-count-pill').textContent = samples.length + ' muestras';
+  list.innerHTML = '';
+  samples.forEach(function(s, i) {
+    var scores = s.scores || {};
+    var chipsHtml = Object.entries(METRIC_LABELS).map(function([k]) {
+      var v = scores[k], cls = scoreClass(v, THRESHOLDS[k] ?? 0.5);
+      var short = METRIC_LABELS[k].split(' ')[0];
+      return '<span class="score-chip ' + cls + '" title="' + METRIC_LABELS[k] + '">' + short + ': ' + fmt(v) + '</span>';
     }).join('');
-
-    const card = document.createElement('div');
-    card.className = 'sample-card';
-    card.innerHTML = `
-      <div class="sample-header" onclick="toggleSample(this)" id="sh-${i}">
-        <div class="sample-index">${s.index ?? i+1}</div>
-        <div class="sample-question">${escHtml(s.user_input ?? '')}</div>
-        <div class="sample-scores-mini">${chipsHtml}</div>
-        <span class="chevron" id="ch-${i}">▼</span>
-      </div>
-      <div class="sample-body" id="sb-${i}">
-        <div class="sample-body-inner">
-          <!-- Question -->
-          <div class="text-block">
-            <div class="text-block-label"><span class="dot dot-q"></span>Pregunta (user_input)</div>
-            <div class="text-block-content">${escHtml(s.user_input ?? '')}</div>
-          </div>
-          <!-- Reference -->
-          <div class="text-block">
-            <div class="text-block-label"><span class="dot dot-r"></span>Respuesta de referencia (ground truth)</div>
-            <div class="text-block-content">${escHtml(s.reference ?? '')}</div>
-          </div>
-          <!-- RAG response -->
-          ${responseHtml}
-          <!-- Reference contexts -->
-          <div class="text-block">
-            <div class="text-block-label"><span class="dot dot-c"></span>Contextos de referencia (${(s.reference_contexts ?? []).length})</div>
-            <div class="contexts-list">${ctxHtml}</div>
-          </div>
-          <!-- Retrieved contexts -->
-          <div class="text-block">
-            <div class="text-block-label"><span class="dot dot-a"></span>Contextos recuperados por el retriever</div>
-            <div class="contexts-list">${retrivedHtml}</div>
-          </div>
-          <!-- Per-sample scores -->
-          <div>
-            <div class="text-block-label" style="background:transparent;border:none;padding:0 0 8px;color:var(--muted)"><span class="dot dot-q"></span>Scores por muestra</div>
-            <div class="sample-metrics-row">${perMetrics}</div>
-          </div>
-        </div>
-      </div>`;
+    var ctxHtml = (s.reference_contexts || []).map(function(c) { return '<div class="context-item">' + escHtml(c) + '</div>'; }).join('') || '<div class="context-item" style="color:var(--muted)">Sin contextos de referencia</div>';
+    var retrivedHtml = (s.retrieved_contexts && s.retrieved_contexts.length)
+      ? s.retrieved_contexts.map(function(c) { return '<div class="context-item">' + escHtml(c) + '</div>'; }).join('')
+      : '<div class="context-item" style="color:var(--muted)">No disponible (re-ejecutá con query_engine activo)</div>';
+    var responseHtml = s.response ? '<div class="text-block"><div class="text-block-label"><span class="dot dot-a"></span>Respuesta generada por el RAG</div><div class="text-block-content">' + escHtml(s.response) + '</div></div>' : '';
+    var perMetrics = Object.entries(METRIC_LABELS).map(function([k, label]) {
+      var v = scores[k], cls = scoreClass(v, THRESHOLDS[k] ?? 0.5);
+      return '<div class="sample-metric-chip"><div class="smc-name">' + label + '</div><div class="smc-value ' + cls + '">' + fmt(v) + '</div></div>';
+    }).join('');
+    var card = document.createElement('div'); card.className = 'sample-card';
+    card.innerHTML = '<div class="sample-header" onclick="toggleSample(this)" id="sh-' + i + '">' +
+      '<div class="sample-index">' + (s.index ?? i+1) + '</div>' +
+      '<div class="sample-question">' + escHtml(s.user_input || '') + '</div>' +
+      '<div class="sample-scores-mini">' + chipsHtml + '</div>' +
+      '<span class="chevron" id="ch-' + i + '">&#9660;</span></div>' +
+      '<div class="sample-body" id="sb-' + i + '"><div class="sample-body-inner">' +
+      '<div class="text-block"><div class="text-block-label"><span class="dot dot-q"></span>Pregunta (user_input)</div><div class="text-block-content">' + escHtml(s.user_input || '') + '</div></div>' +
+      '<div class="text-block"><div class="text-block-label"><span class="dot dot-r"></span>Respuesta de referencia (ground truth)</div><div class="text-block-content">' + escHtml(s.reference || '') + '</div></div>' +
+      responseHtml +
+      '<div class="text-block"><div class="text-block-label"><span class="dot dot-c"></span>Contextos de referencia (' + (s.reference_contexts || []).length + ')</div><div class="contexts-list">' + ctxHtml + '</div></div>' +
+      '<div class="text-block"><div class="text-block-label"><span class="dot dot-a"></span>Contextos recuperados por el retriever</div><div class="contexts-list">' + retrivedHtml + '</div></div>' +
+      '<div><div class="text-block-label" style="background:transparent;border:none;padding:0 0 8px;color:var(--muted)"><span class="dot dot-q"></span>Scores por muestra</div><div class="sample-metrics-row">' + perMetrics + '</div></div>' +
+      '</div></div>';
     list.appendChild(card);
   });
 }
 
 function toggleSample(header) {
-  const idx = header.id.replace('sh-', '');
-  const body = document.getElementById('sb-' + idx);
-  const chev = document.getElementById('ch-' + idx);
-  body.classList.toggle('open');
-  chev.classList.toggle('open');
+  var idx = header.id.replace('sh-', '');
+  document.getElementById('sb-' + idx).classList.toggle('open');
+  document.getElementById('ch-' + idx).classList.toggle('open');
 }
 
-function escHtml(s) {
-  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-function showError(msg) {
-  document.getElementById('error-container').innerHTML =
-    `<div class="error-box">⚠️ ${escHtml(msg)}</div>`;
+async function tryFetch(url) {
+  try {
+    var r = await fetch(url); if (!r.ok) return null;
+    var text = await r.text();
+    var sanitized = text.replace(/:\s*NaN\b/g, ': null');
+    return JSON.parse(sanitized);
+  } catch(_) { return null; }
 }
 
 async function loadReport() {
   try {
-    const resp = await fetch('./report.json');
-    if (!resp.ok) throw new Error(`HTTP ${resp.status} al cargar report.json`);
-    const data = await resp.json();
+    var latestTs = null;
+    await Promise.all(SECTIONS.map(async function(s) {
+      var data = await tryFetch('./' + s.file);
+      sectionData[s.id] = data;
+      if (data && data.timestamp && (!latestTs || data.timestamp > latestTs)) latestTs = data.timestamp;
+      renderMetricGrid('grid-' + s.id, data);
+      updateTabStatus(s.id, data);
+    }));
 
-    // Header meta
-    const ts = data.generated_at ? new Date(data.generated_at).toLocaleString('es-AR') : '—';
-    document.getElementById('ts-badge').textContent = ts;
-
-    const agg = data.aggregate_scores ?? {};
-    const thresholds = data.thresholds ?? {};
-    const allPass = Object.entries(thresholds).every(([k, t]) => {
-      const v = agg[k];
-      return v !== null && !isNaN(v) && v >= t;
-    });
-    const badge = document.getElementById('overall-badge');
-    badge.textContent = allPass ? '✓ Pasa umbrales' : '✗ Falla umbrales';
-    badge.className = 'badge ' + (allPass ? 'badge-pass' : 'badge-fail');
-
-    renderMetricGrid(agg, thresholds);
-    renderSamples(data.samples, thresholds);
-  } catch (e) {
-    showError(e.message + ' — Asegúrate de abrir el dashboard con un servidor HTTP o de haber ejecutado los tests primero.');
-    // Still try scores.json as fallback
-    try {
-      const r2 = await fetch('./scores.json');
-      if (r2.ok) {
-        const s = await r2.json();
-        renderMetricGrid(s, {faithfulness:.5,answer_relevancy:.5,context_precision:.4,context_recall:.4});
+    var report = await tryFetch('./report.json');
+    if (report) {
+      if (!sectionData['base'] && report.aggregate_scores) {
+        sectionData['base'] = report.aggregate_scores;
+        renderMetricGrid('grid-base', report.aggregate_scores);
+        updateTabStatus('base', report.aggregate_scores);
       }
-    } catch (_) {}
+      if (report.samples && report.samples.length) renderSamples(report.samples);
+      if (report.generated_at && !latestTs) latestTs = report.generated_at;
+    }
+
+    if (latestTs) {
+      var ts = new Date(latestTs.length === 16
+        ? latestTs.replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/, '$1-$2-$3T$4:$5:$6Z')
+        : latestTs);
+      document.getElementById('ts-badge').textContent = isNaN(ts) ? latestTs : ts.toLocaleString('es-AR');
+    }
+
+    updateHeaderBadge();
+    renderCompareTable();
+  } catch(e) {
+    showError(e.message + ' — Asegurate de abrir el dashboard con un servidor HTTP (make serve-ragas).');
   }
 }
 

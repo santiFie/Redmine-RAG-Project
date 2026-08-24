@@ -74,7 +74,7 @@ async def analyze_safe_query(state: State) -> State:
     # Extraer siempre el string de contenido, no el objeto mensaje
     user_input: str = last_msg.content if hasattr(last_msg, "content") else str(last_msg)
 
-    llm = get_llm("openrouter", "nvidia/nemotron-3.5-lightning:free", 0.0)
+    llm = get_llm("groq", "openai/gpt-oss-120b", 0.0)
     structured_llm = llm.with_structured_output(SafeQueryClassification)
 
     sys_msg = SystemMessage(
