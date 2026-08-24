@@ -9,7 +9,7 @@ description = "LangGraph agent with Redmine API and LlamaIndex RAG integration"
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }
-authors = [{ name = "Tu Nombre", email = "tu@email.com" }]
+authors = [{ name = "Santiago Fierro", github = "santiFie" }]
 
 dependencies = [
     # LangGraph / LangChain
@@ -103,6 +103,7 @@ python_files = ["test_*.py"]
 python_functions = ["test_*"]
 markers = [
     "ragas: tests de evaluación con Ragas (requieren Qdrant activo y APIs configuradas)",
+    "integration: tests de integración que requieren docker-compose up -d (Qdrant, Postgres)",
 ]
 filterwarnings = [
     "ignore::DeprecationWarning:llama_index.*",

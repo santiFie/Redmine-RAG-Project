@@ -12,6 +12,7 @@ langchain-core>=0.3.0
 langchain-community>=0.3.0
 langchain-mcp-adapters>=0.3.0   # adaptador MCP para integrar tools en LangGraph
 fastmcp                         # requerido: el grafo lanza server.py via .venv/bin/python
+fastembed==0.8.0
 langchain-openai>=0.2.0        # proveedor OpenAI (GPT-4o, etc.)
 langchain-anthropic>=0.2.0     # proveedor Anthropic (Claude)
 langchain-ollama>=0.2.0        # proveedor Ollama (modelos locales)
