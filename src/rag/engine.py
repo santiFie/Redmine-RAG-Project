@@ -13,12 +13,17 @@ Responsabilidades:
 from __future__ import annotations
 
 import contextlib
+import logging
 import os
 from typing import Any
 
 from dotenv import load_dotenv
 from llama_index.core import Settings, StorageContext, VectorStoreIndex
-from llama_index.core.retrievers import AutoMergingRetriever
+from llama_index.core.retrievers import (
+    AutoMergingRetriever,
+    BaseRetriever,
+    VectorIndexAutoRetriever,
+)
 from llama_index.core.schema import (
     NodeRelationship,
     NodeWithScore,
@@ -26,17 +31,20 @@ from llama_index.core.schema import (
     RelatedNodeInfo,
     TextNode,
 )
-from llama_index.core.vector_stores.types import MetadataFilters
+from llama_index.core.vector_stores.types import VectorStoreQueryMode
 from llama_index.embeddings.huggingface_api import HuggingFaceInferenceAPIEmbedding
 from llama_index.storage.docstore.postgres import PostgresDocumentStore
 from llama_index.vector_stores.qdrant import QdrantVectorStore
 from qdrant_client import AsyncQdrantClient, QdrantClient
 
+from src.rag.schemas import REDMINE_VECTOR_STORE_INFO
 from src.rag.utils.get_llm import _LLM_REGISTRY
 from src.rag.utils.parser import build_hierarchical_nodes
 from src.redmine.parser import parse_redmine_issue_to_nodes
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 
 # ==============================================================================
@@ -66,6 +74,11 @@ class AsyncAutoMergingRetriever(AutoMergingRetriever):
             cur_nodes, is_changed = self._try_merging(cur_nodes)
 
         cur_nodes.sort(key=lambda x: x.get_score(), reverse=True)
+        logger.debug(
+            "Hybrid retrieval: %d nodos iniciales → %d tras auto-merge",
+            len(initial_nodes),
+            len(cur_nodes),
+        )
         return cur_nodes
 
 class RAGEngine:
@@ -104,6 +117,14 @@ class RAGEngine:
         raw_key = qdrant_api_key or os.getenv("QDRANT_API_KEY")
         self.qdrant_api_key = raw_key.strip() if raw_key and raw_key.strip() else None
 
+        logger.info(
+            "RAGEngine init: provider=%s embed=%s coleccion=%s qdrant=%s",
+            self.llm_provider,
+            os.getenv("EMBED_MODEL", "BAAI/bge-m3"),
+            self.collection_name,
+            self.qdrant_url,
+        )
+
         self._qdrant = QdrantClient(url=self.qdrant_url, api_key=self.qdrant_api_key)
         self._async_qdrant = AsyncQdrantClient(url=self.qdrant_url, api_key=self.qdrant_api_key)
 
@@ -112,6 +133,8 @@ class RAGEngine:
             client=self._qdrant,
             aclient=self._async_qdrant,
             collection_name=self.collection_name,
+            enable_hybrid=True,
+            fastembed_sparse_model="Qdrant/bm25"
         )
         self._storage_context = self._init_storage_context()
         self._index = self._load_or_create_index()
@@ -154,7 +177,7 @@ class RAGEngine:
             try:
                 self._index.delete_ref_doc(issue_id, delete_from_docstore=True)
             except Exception:
-                pass # Si no existía previamente, ignorar
+                logger.debug("Issue %s no existía previamente, se omite el borrado", issue_id)
 
             # FASE 1: Domain Parsing
             domain_nodes = self.parse_redmine_issue_to_nodes(issue)
@@ -166,6 +189,13 @@ class RAGEngine:
             # FASE 2: Text Parsing (Reglas de LlamaIndex para Parent-Child)
             final_nodes, leaf_nodes = build_hierarchical_nodes(domain_nodes)
 
+            logger.info(
+                "Indexando issue #%s: %d nodos dominio → %d nodo(s) hoja",
+                issue_id,
+                len(domain_nodes),
+                len(leaf_nodes),
+            )
+
             # FASE 3: Indexación y Almacenamiento
             # Guardar la estructura del árbol jerárquico completo en Postgres
             self._storage_context.docstore.add_documents(final_nodes)
@@ -174,36 +204,72 @@ class RAGEngine:
             self._index.insert_nodes(leaf_nodes)
 
 
-    def query(self, question: str, top_k: int = 5, filter: MetadataFilters | None = None) -> str:
+    def query(self, question: str, top_k: int = 5) -> str:
         """Método síncrono (mantenido para compatibilidad y tests)."""
-        retriever = AutoMergingRetriever(
-            vector_retriever=self._index.as_retriever(similarity_top_k=top_k, filters=filter),
+        retriever = self._build_base_retriever(top_k)
+        # Sync Merging Retriever
+        merging_retriever = AutoMergingRetriever(
+            vector_retriever=retriever,
             storage_context=self._storage_context,
-            simple_ratio_thresh=0.1
+            simple_ratio_thresh=0.5,
+            verbose=False,
         )
-
-        nodes = retriever.retrieve(question)
+        nodes = merging_retriever.retrieve(question)
+        logger.info(
+            "Query sync '%s...' → %d nodos | scores=%s",
+            question[:50],
+            len(nodes),
+            [round(n.score or 0.0, 3) for n in nodes],
+        )
         return self._format_context(nodes)
 
     async def aquery(
-        self, question: str, top_k: int = 5, filter: MetadataFilters | None = None
+        self, question: str, top_k: int = 5
     ) -> str:
         """
         Variante async de ``query``: usa ``AsyncAutoMergingRetriever`` para que
         la búsqueda vectorial en Qdrant no bloquee el event loop de LangGraph.
         """
-        retriever = AsyncAutoMergingRetriever(
-            vector_retriever=self._index.as_retriever(similarity_top_k=top_k, filters=filter),
+        retriever = self._build_base_retriever(top_k)
+        # Async Merging Retriever
+        merging_retriever = AsyncAutoMergingRetriever(
+            vector_retriever=retriever,
             storage_context=self._storage_context,
-            simple_ratio_thresh=0.1,
+            simple_ratio_thresh=0.5,
+            verbose=False,
         )
-
-        nodes = await retriever.aretrieve(question)
+        nodes = await merging_retriever.aretrieve(question)
+        logger.info(
+            "Query async '%s...' → %d nodos | scores=%s",
+            question[:50],
+            len(nodes),
+            [round(n.score or 0.0, 3) for n in nodes],
+        )
         return self._format_context(nodes)
 
     # ------------------------------------------------------------------
     # Helpers privados
     # ------------------------------------------------------------------
+
+    def _build_base_retriever(self, top_k: int = 5) -> BaseRetriever:
+        logger.info(
+            "Construyendo base retriever: modo=HYBRID alpha=0.5 sparse_top_k=5 top_k=%d",
+            top_k,
+        )
+        base_auto_retriever = VectorIndexAutoRetriever(
+            index=self._index,
+            vector_store_info=REDMINE_VECTOR_STORE_INFO,
+            vector_store_query_mode=VectorStoreQueryMode.HYBRID,
+            similarity_top_k=top_k,
+            empty_query_top_k=10,
+            extra_retriever_kwargs={
+                "alpha": 0.5,       # 0.5 balancea denso (embeddings) y sparse (BM25)
+                "sparse_top_k": 5,  # Top-k candidatos para la rama léxica
+            },
+        )
+
+        return base_auto_retriever
+
 
     def _format_context(self, nodes: list[NodeWithScore]) -> str:
         """Convierte una lista de nodos recuperados en texto de contexto."""
