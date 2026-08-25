@@ -1,0 +1,8 @@
+{
+  "faithfulness": 0.7881944444444444,
+  "answer_relevancy": 0.8326087736704754,
+  "context_precision": 0.6666666666,
+  "context_recall": 0.29166666666666663,
+  "timestamp": "20260825T151051Z",
+  "suite": "metadata_filter"
+}

@@ -9,6 +9,7 @@ Uso:
 """
 
 import os
+import random
 import sys
 import time
 from pathlib import Path
@@ -178,25 +179,151 @@ pg_restore --clean --if-exists -h localhost -U postgres -d techvanguard_prod /tm
         }
     ]
 
+    # Generación de 50 tickets aleatorios adicionales
+    trackers = [1, 2, 3] # 1: Error, 2: Tarea, 3: Soporte
+    statuses = [1, 2, 3, 4, 5, 6] # 1: Nueva, 2: En curso, 3: Resuelta, 4: Comentarios, 5: Cerrada, 6: Rechazada
+    priorities = [1, 2, 3, 4, 5] # 1: Baja, 2: Normal, 3: Alta, 4: Urgente, 5: Inmediata
+    users = [1, 6, 7, 8] # 1: admin, 6: admin2, 7: Mariano, 8: facundo
+    projects = ["infraestructura-de-servicios", "proyecto-prueba"]
+
+    realistic_templates = [
+        {
+            "subject": "Alerta de Seguridad: Vulnerabilidad Crítica (CVE-{cve_id}) en {component}",
+            "description": "h1. Reporte de Vulnerabilidad en {component}\n\nEl escáner de seguridad ha detectado la vulnerabilidad *CVE-{cve_id}*.\n\nh2. Detalles Técnicos\n* *Severidad*: Crítica (CVSS 9.8)\n* *Descripción*: Un atacante podría ejecutar código remoto si envía un payload malicioso modificado.\n\nh2. Plan de Remediación\n1. Actualizar la imagen base del contenedor de `{component}` a la versión con el parche aplicado.\n2. Ejecutar escaneo con Trivy.\n3. Desplegar en Staging y ejecutar pruebas de regresión.\n\n```yaml\n# Ejemplo de parche en Dockerfile\n- FROM alpine:3.18\n+ FROM alpine:3.19\n```\n\nPor favor, asignar prioridad inmediata.",
+            "notes": [
+                "Se ha creado un branch para aplicar el parche de seguridad.",
+                "El parche ha pasado las pruebas en entorno de QA. Procedemos con el paso a producción.",
+                "Despliegue completado. El nuevo escaneo de Trivy muestra 0 vulnerabilidades críticas."
+            ]
+        },
+        {
+            "subject": "Problema de Rendimiento: Consultas lentas en {component}",
+            "description": "h1. Degradación de Rendimiento\n\nEl sistema de monitoreo Datadog ha detectado un aumento significativo en la latencia del P99 para el `{component}`.\n\nh2. Evidencia\nLas consultas tardan más de 5 segundos en promedio. Query identificada en el slow query log:\n\n```sql\nSELECT * FROM transacciones WHERE user_id = {random_id} AND status = 'PENDING' ORDER BY created_at DESC;\n```\n\nh2. Posible causa\nFalta un índice compuesto en las columnas `(user_id, status, created_at)`.\n\nRevisar el plan de ejecución (`EXPLAIN ANALYZE`) y proponer la migración.",
+            "notes": [
+                "He revisado el EXPLAIN ANALYZE y efectivamente se está haciendo un Seq Scan en la tabla que tiene más de 10 millones de registros.",
+                "Se ha generado el script de migración Flyway para agregar el índice `CONCURRENTLY`.",
+                "Migración ejecutada en producción. La latencia bajó de 5s a 45ms. Problema resuelto."
+            ]
+        },
+        {
+            "subject": "Incidencia: Pods de {component} reiniciando constantemente (CrashLoopBackOff)",
+            "description": "h1. Alerta de Kubernetes\n\nEl namespace `production` está reportando un estado `CrashLoopBackOff` para los pods del despliegue `{component}`.\n\nh2. Logs del Contenedor\n```log\n[ERROR] 2023-10-25 08:15:32 - FATAL: Connection to Redis failed at redis-cluster.internal:6379\n[ERROR] 2023-10-25 08:15:32 - TimeoutError: connect ETIMEDOUT 10.0.{subnet}.45:6379\n```\n\nh2. Impacto\nLos usuarios no pueden iniciar sesión porque el sistema de caché y sesiones está inaccesible desde este microservicio.\nRevisar las reglas de NetworkPolicy o el estado del cluster de Redis.",
+            "notes": [
+                "Se verificó que Redis está operativo, pero hubo un cambio reciente en las NetworkPolicies de Calico.",
+                "El cambio bloqueó el tráfico saliente en el puerto 6379 desde el namespace del componente. Se está revirtiendo el commit.",
+                "Commit revertido y pods en estado Running nuevamente."
+            ]
+        },
+        {
+            "subject": "[Wiki] Procedimiento de Onboarding Técnico para {component}",
+            "description": "h1. Guía de Inicio Rápido: {component}\n\nBienvenidos al repositorio principal de `{component}`.\n\nh2. Requisitos Previos\n* Docker y Docker Compose v2\n* Python 3.11+\n* Node.js 20.x (para los assets estáticos)\n\nh2. Instalación Local\n1. Clonar el repositorio y configurar variables de entorno:\n```bash\ncp .env.example .env\n# Solicitar la clave de API de desarrollo a un administrador\n```\n2. Levantar la base de datos de desarrollo:\n```bash\ndocker-compose up -d db redis\n```\n3. Ejecutar las migraciones:\n```bash\nmake migrate\n```\n\nh2. Arquitectura\nEste servicio se comunica mediante gRPC con el backend central y publica eventos en Kafka (topic: `events.{component}`).",
+            "notes": [
+                "Se actualizó la guía para incluir la dependencia de Node.js 20.x, ya que antes usábamos la 18.",
+                "Añadida la aclaración sobre cómo solicitar las credenciales de desarrollo en Vault."
+            ]
+        },
+        {
+            "subject": "Error 504 Gateway Timeout en la API de {component}",
+            "description": "h1. Reporte de Error en Producción\n\nDurante el pico de tráfico de las 14:00, el balanceador de carga (AWS ALB) devolvió múltiples errores `504 Gateway Timeout` hacia `{component}`.\n\nh2. Métricas Observadas\n* *CPU*: 99% en todos los nodos del Auto Scaling Group.\n* *Latencia Promedio*: > 30 segundos.\n* *Conexiones Activas*: 5000+ (límite configurado en uwsgi es 2000).\n\nh2. Pasos a seguir\n1. Escalar horizontalmente de forma manual (añadir 3 nodos extra).\n2. Investigar qué endpoint está consumiendo tantos recursos.\n3. Ajustar los umbrales del Target Tracking Scaling Policy.",
+            "notes": [
+                "El escalado manual mitigó el problema. El tráfico se ha estabilizado.",
+                "Descubrimos que el endpoint `/api/v1/export` estaba siendo llamado recursivamente por un script malicioso.",
+                "Se ha implementado rate limiting en el WAF para la ruta de exportación. Monitoreando."
+            ]
+        },
+        {
+            "subject": "Renovación de Certificados Let's Encrypt en {component}",
+            "description": "h1. Certificado SSL próximo a expirar\n\nEl sistema de monitoreo indica que el certificado SSL para el dominio asociado a `{component}` expira en 5 días.\n\nh2. Detalles\n* *Dominio*: `api.{component}.techvanguard.com`\n* *Emisor*: Let's Encrypt\n* *Servidor*: Nginx en instancia EC2 (IP: 10.0.{subnet}.{random_id})\n\nh2. Acción Requerida\nNormalmente el certbot debería renovar automáticamente, pero parece que el cronjob falló. Revisar los logs de certbot en `/var/log/letsencrypt/letsencrypt.log` y ejecutar la renovación manual si es necesario:\n\n```bash\nsudo certbot renew --force-renewal\nsudo systemctl reload nginx\n```",
+            "notes": [
+                "Revisando los logs, certbot falló por un problema de resolución DNS temporal durante la validación HTTP-01.",
+                "He ejecutado la renovación manual exitosamente y recargado Nginx.",
+                "Se configuró una alerta adicional en Datadog para monitorear los fallos del cronjob de certbot en el futuro."
+            ]
+        },
+        {
+            "subject": "[DevOps] Migración de CI/CD hacia GitLab CI para {component}",
+            "description": "h1. Plan de Migración de Pipeline\n\nComo parte de la estandarización de herramientas, necesitamos mover los pipelines de Jenkins hacia GitLab CI para `{component}`.\n\nh2. Etapas del Pipeline a Migrar\n1. *Linting*: Flake8 y Black para código Python.\n2. *Testing*: Pytest con cobertura mínima del 85%.\n3. *Build*: Construcción de imagen Docker y push al Registry interno.\n4. *Deploy*: Despliegue usando ArgoCD.\n\nh2. Ejemplo del archivo .gitlab-ci.yml inicial propuesto\n```yaml\nstages:\n  - test\n  - build\n\nrun_tests:\n  stage: test\n  image: python:3.11-slim\n  script:\n    - pip install -r requirements.txt\n    - pytest --cov=src/\n```\n\nAsignar a un ingeniero DevOps para completar la configuración de ArgoCD.",
+            "notes": [
+                "Pipeline básico implementado en GitLab. Falta integrar la autenticación con el Registry.",
+                "Se configuraron las variables CI/CD protegidas. El paso de build ya funciona.",
+                "Migración completada. ArgoCD ha sincronizado exitosamente la primera imagen generada por GitLab CI. Apagando el job en Jenkins."
+            ]
+        },
+        {
+            "subject": "Bug Visual: Error de alineación en Safari para {component}",
+            "description": "h1. Reporte de Bug de UI\n\nLos usuarios de MacOS/iOS reportan que en el navegador Safari, los botones de acción del `{component}` están superpuestos con el texto principal.\n\nh2. Pasos para reproducir\n1. Abrir Safari (versión 16.0+).\n2. Navegar a la pantalla principal del `{component}`.\n3. Observar la barra de herramientas inferior.\n\nh2. Contexto Técnico\nParece estar relacionado con el uso de `flex-gap` y un fallback faltante en el CSS compilado. \n\n```css\n.toolbar {\n  display: flex;\n  gap: 16px; /* Safari antiguo tiene bugs con gap en flexbox */\n  justify-content: space-between;\n}\n```\n\nAplicar vendor prefixes o reescribir el layout usando márgenes según sea necesario.",
+            "notes": [
+                "Confirmado. El problema ocurre en Safari 14.1 específicamente. Añadiendo fix.",
+                "El PR #442 resuelve el problema implementando márgenes en lugar de gap condicionalmente para navegadores legacy.",
+                "Desplegado a producción. Bug cerrado."
+            ]
+        }
+    ]
+
+    components_list = [
+        "Auth Service", "Payment Gateway", "User Dashboard", "Inventory API", 
+        "Notification Worker", "Data Pipeline", "CRM Integration", "Mobile App Backend",
+        "Frontend SPA", "Admin Panel"
+    ]
+
+    print("Generando 50 tickets aleatorios adicionales con ejemplos reales...")
+    for _ in range(50):
+        template = random.choice(realistic_templates)
+        comp = random.choice(components_list)
+        cve_id = f"2023-{random.randint(1000, 99999)}"
+        subnet = random.randint(10, 200)
+        rnd_id = random.randint(100, 9999)
+        
+        subj = template["subject"].replace("{component}", comp).replace("{cve_id}", cve_id)
+        desc = (
+            template["description"]
+            .replace("{component}", comp)
+            .replace("{cve_id}", cve_id)
+            .replace("{subnet}", str(subnet))
+            .replace("{random_id}", str(rnd_id))
+        )
+        
+        max_notes = len(template["notes"])
+        num_notes = random.randint(0, max_notes)
+        issue_notes = template["notes"][:num_notes] if num_notes > 0 else []
+        
+        issues_data.append({
+            "subject": subj,
+            "description": desc,
+            "notes": issue_notes,
+            "tracker_id": random.choice(trackers),
+            "status_id": random.choice(statuses),
+            "priority_id": random.choice(priorities),
+            "assigned_to_id": random.choice(users),
+            "project_id": random.choice(projects)
+        })
+
     try:
         with RedmineClient() as client:
             for item in issues_data:
-                print(f"Creando ticket: {item['subject']}")
+                t_project_id = item.get("project_id", project_id)
+                print(f"Creando ticket: {item['subject']} en proyecto {t_project_id}")
+                
+                kwargs = {}
+                if "tracker_id" in item: kwargs["tracker_id"] = item["tracker_id"]
+                if "status_id" in item: kwargs["status_id"] = item["status_id"]
+                if "priority_id" in item: kwargs["priority_id"] = item["priority_id"]
+                if "assigned_to_id" in item: kwargs["assigned_to_id"] = item["assigned_to_id"]
+                
                 created = client.create_issue(
-                    project_id=project_id,
+                    project_id=t_project_id,
                     subject=item['subject'],
                     description=item['description'],
+                    **kwargs
                 )
                 issue_id = created.get("id")
                 
                 print(f" -> Ticket #{issue_id} creado exitosamente.")
                 
-                # Agregar comentarios/notas (simulando journals/documentación en el tiempo)
-                if "notes" in item:
+                if "notes" in item and item["notes"]:
                     for note in item["notes"]:
                         print(f"    Agregando nota al ticket #{issue_id}...")
                         client.update_issue(issue_id=issue_id, notes=note)
-                        # Pequeña pausa para evitar colisiones o problemas de límite de tasa, si los hubiera
                         time.sleep(0.5)
                         
             print("\n¡Todos los datos de prueba han sido generados exitosamente!")

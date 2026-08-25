@@ -37,7 +37,10 @@ from llama_index.storage.docstore.postgres import PostgresDocumentStore
 from llama_index.vector_stores.qdrant import QdrantVectorStore
 from qdrant_client import AsyncQdrantClient, QdrantClient
 
-from src.rag.schemas import REDMINE_VECTOR_STORE_INFO
+from src.rag.schemas import (
+    REDMINE_AUTO_RETRIEVER_PROMPT_TMPL,
+    REDMINE_VECTOR_STORE_INFO,
+)
 from src.rag.utils.get_llm import _LLM_REGISTRY
 from src.rag.utils.parser import build_hierarchical_nodes
 from src.redmine.parser import parse_redmine_issue_to_nodes
@@ -259,6 +262,7 @@ class RAGEngine:
         base_auto_retriever = VectorIndexAutoRetriever(
             index=self._index,
             vector_store_info=REDMINE_VECTOR_STORE_INFO,
+            prompt_template_str=REDMINE_AUTO_RETRIEVER_PROMPT_TMPL,
             vector_store_query_mode=VectorStoreQueryMode.HYBRID,
             similarity_top_k=top_k,
             empty_query_top_k=10,
