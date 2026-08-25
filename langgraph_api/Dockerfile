@@ -35,4 +35,4 @@ HEALTHCHECK --interval=30s --timeout=15s --start-period=30s --retries=5 \
 # Arrancar el servidor de desarrollo de LangGraph
 # --host 0.0.0.0 permite conexiones desde otros contenedores en la red Docker
 # --no-browser evita intentar abrir el navegador (innecesario en contenedor)
-CMD ["langgraph", "dev", "--host", "localhost", "--port", "8123", "--no-browser"]
+CMD ["langgraph", "dev", "--host", "0.0.0.0", "--port", "8123", "--no-browser"]
