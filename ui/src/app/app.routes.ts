@@ -20,6 +20,12 @@ export const routes: Routes = [
     canActivate: [authGuard],
   },
   {
+    path: 'tests',
+    loadComponent: () =>
+      import('./features/tests/tests.component').then(m => m.TestsComponent),
+    canActivate: [authGuard],
+  },
+  {
     path: '**',
     redirectTo: 'chat',
   },

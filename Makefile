@@ -40,7 +40,8 @@ test: ## Ejecuta la suite de pruebas con Pytest
 
 test-ragas: ## Ejecuta la evaluación RAG con Ragas y levanta el servidor de resultados
 	$(PYTEST) -m ragas
-	@echo "Visualización disponible en http://127.0.0.1:8765/dashboard.html"
+	@mkdir -p ui/public/results && cp -r tests/ragas/results/* ui/public/results/ 2>/dev/null || true
+	@echo "Visualización disponible en http://127.0.0.1:8765/dashboard.html (o en la UI en /tests)"
 	cd tests/ragas/results && python3 -m http.server 8765 --bind 127.0.0.1
 
 serve-ragas: ## Inicia únicamente el servidor HTTP de resultados Ragas

@@ -1,0 +1,8 @@
+{
+  "faithfulness": 0.9166666666666666,
+  "answer_relevancy": 0.8504990115575853,
+  "context_precision": NaN,
+  "context_recall": 1.0,
+  "timestamp": "20260824T114252Z",
+  "suite": "hybrid"
+}

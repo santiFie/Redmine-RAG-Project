@@ -5,12 +5,13 @@
       <div class="brand">
         <div class="brand-icon">
           <svg width="22" height="22" viewBox="0 0 32 32" fill="none">
-            <path d="M16 2L30 9V23L16 30L2 23V9L16 2Z" fill="url(#g1)"/>
-            <path d="M10 16L14 20L22 12" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M16 2L30 9V23L16 30L2 23V9L16 2Z" fill="url(#g1)" />
+            <path d="M10 16L14 20L22 12" stroke="white" stroke-width="2.5" stroke-linecap="round"
+              stroke-linejoin="round" />
             <defs>
               <linearGradient id="g1" x1="2" y1="2" x2="30" y2="30">
-                <stop offset="0%" stop-color="#6366F1"/>
-                <stop offset="100%" stop-color="#06B6D4"/>
+                <stop offset="0%" stop-color="#6366F1" />
+                <stop offset="100%" stop-color="#06B6D4" />
               </linearGradient>
             </defs>
           </svg>
@@ -19,10 +20,28 @@
       </div>
     </div>
 
+    <div class="sidebar-section sidebar-nav">
+      <p class="sidebar-label">Navegación</p>
+      <a routerLink="/chat" routerLinkActive="active" class="nav-item" id="nav-chat-btn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+        <span>Chat</span>
+      </a>
+      <a routerLink="/tests" routerLinkActive="active" class="nav-item" id="nav-tests-btn">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path
+            d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2V9M9 21H5a2 2 0 0 1-2-2V9m0 0h18" />
+        </svg>
+        <span>Evaluación RAG & Tests</span>
+      </a>
+    </div>
+
     <div class="sidebar-section">
       <button class="btn btn-primary new-chat-btn" (click)="newConversation()" id="new-chat-btn">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          <line x1="12" y1="5" x2="12" y2="19" />
+          <line x1="5" y1="12" x2="19" y2="12" />
         </svg>
         Nueva conversación
       </button>
@@ -31,14 +50,14 @@
     <div class="sidebar-section sidebar-history">
       <p class="sidebar-label">Conversación actual</p>
       @if (threadId()) {
-        <div class="thread-item active">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-          </svg>
-          <span class="text-truncate">{{ messages()[0]?.content.slice(0, 30) || 'Sin mensajes aún' }}</span>
-        </div>
+      <div class="thread-item active">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+        <span class="text-truncate">{{ messages()[0]?.content.slice(0, 30) || 'Sin mensajes aún' }}</span>
+      </div>
       } @else {
-        <p class="sidebar-empty">Enviá un mensaje para empezar.</p>
+      <p class="sidebar-empty">Enviá un mensaje para empezar.</p>
       }
     </div>
 
@@ -51,9 +70,9 @@
         </div>
         <button class="btn btn-icon logout-btn" (click)="auth.logout()" title="Cerrar sesión" id="logout-btn">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-            <polyline points="16 17 21 12 16 7"/>
-            <line x1="21" y1="12" x2="9" y2="12"/>
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
           </svg>
         </button>
       </div>
@@ -77,101 +96,100 @@
           </p>
         </div>
       </div>
-      @if (threadId()) {
+      <div class="header-actions">
+        <a routerLink="/tests" class="btn btn-secondary tests-quick-btn" title="Ver dashboards de evaluación de Ragas"
+          id="quick-tests-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+          </svg>
+          Tests & Dashboards
+        </a>
+        @if (threadId()) {
         <span class="thread-badge">
           Thread: {{ threadId()!.slice(0, 8) }}…
         </span>
-      }
+        }
+      </div>
     </header>
 
     <!-- Messages -->
     <div class="messages-area" #messagesArea>
       @if (messages().length === 0) {
-        <div class="empty-state animate-fade-in">
-          <div class="empty-icon">
-            <svg width="48" height="48" viewBox="0 0 32 32" fill="none">
-              <path d="M16 2L30 9V23L16 30L2 23V9L16 2Z" fill="url(#g3)" opacity="0.6"/>
-              <defs>
-                <linearGradient id="g3" x1="2" y1="2" x2="30" y2="30">
-                  <stop offset="0%" stop-color="#6366F1"/>
-                  <stop offset="100%" stop-color="#06B6D4"/>
-                </linearGradient>
-              </defs>
-            </svg>
-          </div>
-          <h3>¿En qué puedo ayudarte?</h3>
-          <p>Consultá issues de Redmine, buscá en la base de conocimiento o hacé preguntas generales.</p>
-          <div class="suggestions">
-            @for (s of suggestions; track s) {
-              <button class="suggestion-chip" (click)="sendSuggestion(s)">{{ s }}</button>
-            }
-          </div>
+      <div class="empty-state animate-fade-in">
+        <div class="empty-icon">
+          <svg width="48" height="48" viewBox="0 0 32 32" fill="none">
+            <path d="M16 2L30 9V23L16 30L2 23V9L16 2Z" fill="url(#g3)" opacity="0.6" />
+            <defs>
+              <linearGradient id="g3" x1="2" y1="2" x2="30" y2="30">
+                <stop offset="0%" stop-color="#6366F1" />
+                <stop offset="100%" stop-color="#06B6D4" />
+              </linearGradient>
+            </defs>
+          </svg>
         </div>
+        <h3>¿En qué puedo ayudarte?</h3>
+        <p>Consultá issues de Redmine, buscá en la base de conocimiento o hacé preguntas generales.</p>
+        <div class="suggestions">
+          @for (s of suggestions; track s) {
+          <button class="suggestion-chip" (click)="sendSuggestion(s)">{{ s }}</button>
+          }
+        </div>
+      </div>
       }
 
       @for (msg of messages(); track msg.id) {
-        <!-- Tool indicators before assistant messages -->
-        @if (msg.role === 'assistant' && getToolSteps(msg.id).length > 0) {
-          <div class="tool-steps animate-fade-slide-up">
-            @for (step of getToolSteps(msg.id); track step.toolCall.id) {
-              <app-tool-indicator [step]="step" />
-            }
-          </div>
+      <!-- Tool indicators before assistant messages -->
+      @if (msg.role === 'assistant' && getToolSteps(msg.id).length > 0) {
+      <div class="tool-steps animate-fade-slide-up">
+        @for (step of getToolSteps(msg.id); track step.toolCall.id) {
+        <app-tool-indicator [step]="step" />
         }
-        <app-message-bubble [message]="msg" />
+      </div>
+      }
+      <app-message-bubble [message]="msg" />
       }
 
       <!-- Typing indicator -->
       @if (isStreaming() && !currentStreamingMsgId()) {
-        <div class="typing-indicator animate-fade-in">
-          <div class="typing-dots">
-            <span></span><span></span><span></span>
-          </div>
-          <span class="typing-label">El agente está procesando…</span>
+      <div class="typing-indicator animate-fade-in">
+        <div class="typing-dots">
+          <span></span><span></span><span></span>
         </div>
+        <span class="typing-label">El agente está procesando…</span>
+      </div>
       }
     </div>
 
     <!-- Input área -->
     <div class="input-area">
       @if (errorMsg()) {
-        <div class="error-banner">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
-          </svg>
-          {{ errorMsg() }}
-          <button class="dismiss-btn" (click)="errorMsg.set(null)">✕</button>
-        </div>
+      <div class="error-banner">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10" />
+          <line x1="15" y1="9" x2="9" y2="15" />
+          <line x1="9" y1="9" x2="15" y2="15" />
+        </svg>
+        {{ errorMsg() }}
+        <button class="dismiss-btn" (click)="errorMsg.set(null)">✕</button>
+      </div>
       }
       <div class="input-row">
-        <textarea
-          #inputEl
-          class="chat-input"
-          [(ngModel)]="inputText"
-          placeholder="Escribí tu consulta… (Enter para enviar, Shift+Enter para nueva línea)"
-          rows="1"
-          [disabled]="isStreaming()"
-          (keydown.enter)="onEnter($event)"
-          (input)="autoResize()"
-          id="chat-input"
-          aria-label="Mensaje"
-        ></textarea>
-        <button
-          class="btn btn-primary send-btn"
-          [disabled]="!canSend()"
-          (click)="sendMessage()"
-          id="send-btn"
-          aria-label="Enviar mensaje"
-        >
+        <textarea #inputEl class="chat-input" [(ngModel)]="inputText"
+          placeholder="Escribí tu consulta… (Enter para enviar, Shift+Enter para nueva línea)" rows="1"
+          [disabled]="isStreaming()" (keydown.enter)="onEnter($event)" (input)="autoResize()" id="chat-input"
+          aria-label="Mensaje"></textarea>
+        <button class="btn btn-primary send-btn" [disabled]="!canSend()" (click)="sendMessage()" id="send-btn"
+          aria-label="Enviar mensaje">
           @if (isStreaming()) {
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="animate-spin">
-              <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-            </svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            class="animate-spin">
+            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+          </svg>
           } @else {
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="22" y1="2" x2="11" y2="13"/>
-              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-            </svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="22" y1="2" x2="11" y2="13" />
+            <polygon points="22 2 15 22 11 13 2 9 22 2" />
+          </svg>
           }
         </button>
       </div>

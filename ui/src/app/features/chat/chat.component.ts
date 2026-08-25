@@ -4,7 +4,7 @@ import {
   inject, signal, computed
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { AuthService } from '../../core/auth/auth.service';
 import { ChatService, ChatEvent, ToolCallEvent, ToolResultEvent, NODE_LABELS } from '../../core/chat/chat.service';
@@ -14,7 +14,7 @@ import { ToolIndicatorComponent, ToolStep } from './components/tool-indicator/to
 @Component({
   selector: 'app-chat',
   standalone: true,
-  imports: [FormsModule, MessageBubbleComponent, ToolIndicatorComponent],
+  imports: [FormsModule, MessageBubbleComponent, ToolIndicatorComponent, RouterLink, RouterLinkActive],
   templateUrl: './chat.component.html',
   styleUrl: './chat.component.scss',
 })
