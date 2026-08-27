@@ -104,6 +104,7 @@ python_functions = ["test_*"]
 markers = [
     "ragas: tests de evaluación con Ragas (requieren Qdrant activo y APIs configuradas)",
     "integration: tests de integración que requieren docker-compose up -d (Qdrant, Postgres)",
+    "smoke: tests de humo para validar levantamiento y salud de servicios en contenedores",
 ]
 filterwarnings = [
     "ignore::DeprecationWarning:llama_index.*",

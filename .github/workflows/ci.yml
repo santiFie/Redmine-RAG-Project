@@ -1,0 +1,179 @@
+name: CI - Lint, Build & Services Smoke Test
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── JOB 1: Linting y Chequeo Estático (Python) ─────────────────────────────
+  lint-python:
+    name: Python Lint & Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Lint Tools
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff mypy
+
+      - name: Run Ruff Linter
+        run: ruff check .
+
+      - name: Run Ruff Formatter Check
+        run: ruff format --check .
+
+      - name: Run MyPy Typecheck
+        run: mypy src/ --ignore-missing-imports
+
+  # ── JOB 2: Build y Validación Frontend (UI) ────────────────────────────────
+  build-ui:
+    name: Angular UI Build Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Install & Build UI
+        working-directory: ./ui
+        run: |
+          npm ci
+          npm run build
+
+  # ── JOB 3: Tests Unitarios Aislados ─────────────────────────────────────────
+  unit-tests:
+    name: Unit & Component Tests
+    runs-on: ubuntu-latest
+    needs: [lint-python]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r bff/requirements.txt
+
+      - name: Run Unit Tests
+        env:
+          REDMINE_URL: "http://localhost:3000"
+          REDMINE_API_KEY: "dummy-ci-key"
+          GROQ_API_KEY: "dummy-groq-key"
+          NVIDIA_API_KEY: "dummy-nvidia-key"
+          HUGGINGFACE_API_KEY: "dummy-hf-key"
+        run: |
+          PYTHONPATH=. pytest -v tests/unit
+
+  # ── JOB 4: Docker Compose Services & Smoke Tests ────────────────────────────
+  services-smoke-test:
+    name: Docker Services Up & Smoke Test
+    runs-on: ubuntu-latest
+    needs: [unit-tests, build-ui]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Smoke Test Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest httpx
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Generate CI Environment Configuration
+        run: |
+          cat << 'EOF' > .env
+          REDMINE_DB_NAME=redmine
+          REDMINE_DB_USER=redmine
+          REDMINE_DB_PASSWORD=redmine_secret
+          REDMINE_SECRET_KEY_BASE=ci_secret_key_base_12345678901234567890
+          REDMINE_API_KEY=ci_redmine_api_key_12345
+          REDMINE_PORT=3000
+          POSTGRES_PORT=5432
+          QDRANT_HTTP_PORT=6333
+          QDRANT_GRPC_PORT=6334
+          LANGGRAPH_PORT=8123
+          BFF_PORT=8000
+          UI_PORT=4200
+          GROQ_API_KEY=dummy-groq-key
+          NVIDIA_API_KEY=dummy-nvidia-key
+          HUGGINGFACE_API_KEY=dummy-hf-key
+          PGADMIN_DEFAULT_EMAIL=admin@example.com
+          PGADMIN_DEFAULT_PASSWORD=admin
+          EOF
+          cp .env bff/.env
+
+      - name: Build and Start Docker Services
+        run: |
+          docker compose up -d --build
+
+      - name: Wait for Services Health (Readiness Polling)
+        timeout-minutes: 4
+        run: |
+          echo "Esperando que los servicios alcancen estado HEALTHY..."
+          SERVICES=("redmine_postgres" "qdrant_vectordb" "redmine_app" "langgraph_api_server" "bff_server")
+          
+          for svc in "${SERVICES[@]}"; do
+            echo "--- Comprobando $svc ---"
+            until [ "$(docker inspect -f '{{.State.Health.Status}}' $svc 2>/dev/null)" == "healthy" ]; do
+              STATUS=$(docker inspect -f '{{.State.Health.Status}}' $svc 2>/dev/null || echo "no creado")
+              echo "Estado actual de $svc: $STATUS... esperando 5s"
+              sleep 5
+            done
+            echo "✅ $svc está HEALTHY"
+          done
+
+      - name: Execute Smoke Tests via Pytest
+        run: |
+          pytest -v -m smoke tests/smoke/
+
+      - name: Test MCP Redmine Handshake
+        run: |
+          echo "Ejecutando handshake JSON-RPC del MCP Server..."
+          echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"ci-test","version":"0.0.1"}}}' \
+            | docker run --rm -i --network host --env-file .env redmine-mcp-server | grep '"result"' || true
+
+      - name: Dump Docker Logs on Failure
+        if: failure()
+        run: |
+          echo "=== DUMPING DOCKER LOGS FOR DEBUGGING ==="
+          docker compose logs --tail=100
+
+      - name: Shutdown Docker Services & Clean Volumes
+        if: always()
+        run: |
+          docker compose down -v
