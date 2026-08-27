@@ -37,6 +37,7 @@ load_dotenv()
 # Excepciones tipadas
 # ---------------------------------------------------------------------------
 
+
 class RedmineAPIError(Exception):
     """Error genérico de la API de Redmine."""
 
@@ -60,6 +61,7 @@ class RedmineValidationError(RedmineAPIError):
 # ---------------------------------------------------------------------------
 # Cliente principal
 # ---------------------------------------------------------------------------
+
 
 class RedmineClient:
     """
@@ -99,7 +101,7 @@ class RedmineClient:
         """Cierra el cliente HTTP subyacente."""
         self._client.close()
 
-    def __enter__(self) -> "RedmineClient":
+    def __enter__(self) -> RedmineClient:
         return self
 
     def __exit__(self, *_: Any) -> None:
@@ -560,13 +562,9 @@ class RedmineClient:
     def _handle_response_error(self, response: httpx.Response) -> None:
         """Convierte errores HTTP en excepciones tipadas."""
         if response.status_code == 404:
-            raise RedmineNotFoundError(
-                f"Recurso no encontrado: {response.request.url}"
-            )
+            raise RedmineNotFoundError(f"Recurso no encontrado: {response.request.url}")
         if response.status_code == 403:
-            raise RedmineForbiddenError(
-                f"Acceso denegado: {response.request.url}"
-            )
+            raise RedmineForbiddenError(f"Acceso denegado: {response.request.url}")
         if response.status_code == 422:
             try:
                 errors: list[str] = response.json().get("errors", [])
@@ -592,12 +590,15 @@ class RedmineClient:
             response = self._client.get(endpoint, params=clean_params)
             self._handle_response_error(response)
             return response.json()
-        except (RedmineNotFoundError, RedmineForbiddenError, RedmineValidationError, RedmineAPIError):
+        except (
+            RedmineNotFoundError,
+            RedmineForbiddenError,
+            RedmineValidationError,
+            RedmineAPIError,
+        ):
             raise
         except httpx.HTTPStatusError as e:
-            raise RedmineAPIError(
-                f"HTTP {e.response.status_code}: {e.response.text}"
-            ) from e
+            raise RedmineAPIError(f"HTTP {e.response.status_code}: {e.response.text}") from e
         except httpx.RequestError as e:
             raise RedmineAPIError(f"Error de conexión con Redmine: {e}") from e
 
@@ -619,12 +620,15 @@ class RedmineClient:
             if response.content:
                 return response.json()
             return {}
-        except (RedmineNotFoundError, RedmineForbiddenError, RedmineValidationError, RedmineAPIError):
+        except (
+            RedmineNotFoundError,
+            RedmineForbiddenError,
+            RedmineValidationError,
+            RedmineAPIError,
+        ):
             raise
         except httpx.HTTPStatusError as e:
-            raise RedmineAPIError(
-                f"HTTP {e.response.status_code}: {e.response.text}"
-            ) from e
+            raise RedmineAPIError(f"HTTP {e.response.status_code}: {e.response.text}") from e
         except httpx.RequestError as e:
             raise RedmineAPIError(f"Error de conexión con Redmine: {e}") from e
 
@@ -643,12 +647,15 @@ class RedmineClient:
             response = self._client.put(endpoint, json=payload)
             self._handle_response_error(response)
             return response.status_code == 204
-        except (RedmineNotFoundError, RedmineForbiddenError, RedmineValidationError, RedmineAPIError):
+        except (
+            RedmineNotFoundError,
+            RedmineForbiddenError,
+            RedmineValidationError,
+            RedmineAPIError,
+        ):
             raise
         except httpx.HTTPStatusError as e:
-            raise RedmineAPIError(
-                f"HTTP {e.response.status_code}: {e.response.text}"
-            ) from e
+            raise RedmineAPIError(f"HTTP {e.response.status_code}: {e.response.text}") from e
         except httpx.RequestError as e:
             raise RedmineAPIError(f"Error de conexión con Redmine: {e}") from e
 
@@ -666,11 +673,14 @@ class RedmineClient:
             response = self._client.delete(endpoint)
             self._handle_response_error(response)
             return response.status_code == 204
-        except (RedmineNotFoundError, RedmineForbiddenError, RedmineValidationError, RedmineAPIError):
+        except (
+            RedmineNotFoundError,
+            RedmineForbiddenError,
+            RedmineValidationError,
+            RedmineAPIError,
+        ):
             raise
         except httpx.HTTPStatusError as e:
-            raise RedmineAPIError(
-                f"HTTP {e.response.status_code}: {e.response.text}"
-            ) from e
+            raise RedmineAPIError(f"HTTP {e.response.status_code}: {e.response.text}") from e
         except httpx.RequestError as e:
             raise RedmineAPIError(f"Error de conexión con Redmine: {e}") from e

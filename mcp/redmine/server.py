@@ -12,18 +12,17 @@ Config via env vars: REDMINE_URL, REDMINE_API_KEY
 from __future__ import annotations
 
 import os
-from typing import Any, Optional
-
-from dotenv import load_dotenv
-from fastmcp import FastMCP
+from typing import Any
 
 from client import (
-    RedmineClient,
     RedmineAPIError,
-    RedmineNotFoundError,
+    RedmineClient,
     RedmineForbiddenError,
+    RedmineNotFoundError,
     RedmineValidationError,
 )
+from dotenv import load_dotenv
+from fastmcp import FastMCP
 
 load_dotenv()
 
@@ -57,6 +56,7 @@ def _fmt_err(e: Exception) -> str:
 
 # ── ISSUES ──────────────────────────────────────────────────────────────────
 
+
 @mcp.tool
 def get_issue(
     issue_id: int,
@@ -78,13 +78,15 @@ def get_issue(
         include_children: Incluir sub-issues.
     """
     includes = [
-        k for k, v in {
+        k
+        for k, v in {
             "journals": include_journals,
             "attachments": include_attachments,
             "watchers": include_watchers,
             "relations": include_relations,
             "children": include_children,
-        }.items() if v
+        }.items()
+        if v
     ]
     with _get_client() as c:
         try:
@@ -95,11 +97,11 @@ def get_issue(
 
 @mcp.tool
 def list_issues(
-    project_id: Optional[str] = None,
+    project_id: str | None = None,
     status_id: str = "open",
-    assigned_to_id: Optional[str] = None,
-    tracker_id: Optional[int] = None,
-    sort: Optional[str] = None,
+    assigned_to_id: str | None = None,
+    tracker_id: int | None = None,
+    sort: str | None = None,
     limit: int = 25,
     offset: int = 0,
     fetch_all: bool = False,
@@ -137,13 +139,13 @@ def list_issues(
 def create_issue(
     project_id: str,
     subject: str,
-    description: Optional[str] = None,
-    tracker_id: Optional[int] = None,
-    status_id: Optional[int] = None,
-    priority_id: Optional[int] = None,
-    assigned_to_id: Optional[int] = None,
-    parent_issue_id: Optional[int] = None,
-    estimated_hours: Optional[float] = None,
+    description: str | None = None,
+    tracker_id: int | None = None,
+    status_id: int | None = None,
+    priority_id: int | None = None,
+    assigned_to_id: int | None = None,
+    parent_issue_id: int | None = None,
+    estimated_hours: float | None = None,
     is_private: bool = False,
 ) -> dict[str, Any]:
     """
@@ -182,14 +184,14 @@ def create_issue(
 @mcp.tool
 def update_issue(
     issue_id: int,
-    subject: Optional[str] = None,
-    description: Optional[str] = None,
-    status_id: Optional[int] = None,
-    priority_id: Optional[int] = None,
-    assigned_to_id: Optional[int] = None,
-    tracker_id: Optional[int] = None,
-    estimated_hours: Optional[float] = None,
-    notes: Optional[str] = None,
+    subject: str | None = None,
+    description: str | None = None,
+    status_id: int | None = None,
+    priority_id: int | None = None,
+    assigned_to_id: int | None = None,
+    tracker_id: int | None = None,
+    estimated_hours: float | None = None,
+    notes: str | None = None,
 ) -> dict[str, Any]:
     """
     Actualiza un issue existente. Solo los campos provistos son modificados.
@@ -206,11 +208,17 @@ def update_issue(
         notes: Comentario a añadir al historial del issue.
     """
     kwargs: dict[str, Any] = {
-        k: v for k, v in dict(
-            subject=subject, description=description, status_id=status_id,
-            priority_id=priority_id, assigned_to_id=assigned_to_id,
-            tracker_id=tracker_id, estimated_hours=estimated_hours,
-        ).items() if v is not None
+        k: v
+        for k, v in dict(
+            subject=subject,
+            description=description,
+            status_id=status_id,
+            priority_id=priority_id,
+            assigned_to_id=assigned_to_id,
+            tracker_id=tracker_id,
+            estimated_hours=estimated_hours,
+        ).items()
+        if v is not None
     }
     with _get_client() as c:
         try:
@@ -269,6 +277,7 @@ def remove_watcher(issue_id: int, user_id: int) -> dict[str, Any]:
 
 # ── PROJECTS ─────────────────────────────────────────────────────────────────
 
+
 @mcp.tool
 def list_projects(
     limit: int = 25,
@@ -305,10 +314,12 @@ def get_project(
         include_issue_categories: Incluir categorías de issues.
     """
     includes = [
-        k for k, v in {
+        k
+        for k, v in {
             "trackers": include_trackers,
             "issue_categories": include_issue_categories,
-        }.items() if v
+        }.items()
+        if v
     ]
     with _get_client() as c:
         try:
@@ -321,9 +332,9 @@ def get_project(
 def create_project(
     name: str,
     identifier: str,
-    description: Optional[str] = None,
+    description: str | None = None,
     is_public: bool = True,
-    parent_id: Optional[int] = None,
+    parent_id: int | None = None,
     inherit_members: bool = False,
 ) -> dict[str, Any]:
     """
@@ -354,10 +365,10 @@ def create_project(
 @mcp.tool
 def update_project(
     project_id: str,
-    name: Optional[str] = None,
-    description: Optional[str] = None,
-    is_public: Optional[bool] = None,
-    inherit_members: Optional[bool] = None,
+    name: str | None = None,
+    description: str | None = None,
+    is_public: bool | None = None,
+    inherit_members: bool | None = None,
 ) -> dict[str, Any]:
     """
     Actualiza los datos de un proyecto existente.
@@ -370,10 +381,14 @@ def update_project(
         inherit_members: Cambiar herencia de miembros.
     """
     kwargs = {
-        k: v for k, v in dict(
-            name=name, description=description,
-            is_public=is_public, inherit_members=inherit_members,
-        ).items() if v is not None
+        k: v
+        for k, v in dict(
+            name=name,
+            description=description,
+            is_public=is_public,
+            inherit_members=inherit_members,
+        ).items()
+        if v is not None
     }
     with _get_client() as c:
         try:

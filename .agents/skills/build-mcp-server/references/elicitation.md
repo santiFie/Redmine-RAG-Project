@@ -52,6 +52,7 @@ server.registerTool("delete_all", {
 from fastmcp import Context
 from fastmcp.exceptions import CapabilityNotSupported
 
+
 @mcp.tool
 async def delete_all(ctx: Context) -> str:
     try:
@@ -97,14 +98,17 @@ The TS SDK's `server.elicitInput()` auto-validates `accept` responses against yo
 
 ```python
 await ctx.elicit("Pick a color", response_type=["red", "green", "blue"])  # enum
-await ctx.elicit("Enter email", response_type=str)                         # string
-await ctx.elicit("Confirm?", response_type=bool)                           # boolean
+await ctx.elicit("Enter email", response_type=str)  # string
+await ctx.elicit("Confirm?", response_type=bool)  # boolean
+
 
 @dataclass
 class ContactInfo:
     name: str
     email: str
-await ctx.elicit("Contact details", response_type=ContactInfo)             # flat dataclass
+
+
+await ctx.elicit("Contact details", response_type=ContactInfo)  # flat dataclass
 ```
 
 Accepts: primitives, `list[str]` (becomes enum), dataclass, TypedDict, Pydantic BaseModel. All must be flat.

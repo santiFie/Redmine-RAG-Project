@@ -10,7 +10,7 @@ from unittest import mock
 import pytest
 from pydantic import ValidationError
 
-# Mockear RAGEngine ANTES de importar src.agent.graph para evitar 
+# Mockear RAGEngine ANTES de importar src.agent.graph para evitar
 # intentos de conexión a Qdrant (I/O bloqueante) durante la recolección de tests.
 with mock.patch("src.rag.engine.RAGEngine", autospec=True):
     from src.agent.graph import (
@@ -23,10 +23,7 @@ with mock.patch("src.rag.engine.RAGEngine", autospec=True):
 
 def test_safe_query_classification_schema_valido():
     """Valida el esquema Pydantic para clasificación segura."""
-    data = {
-        "reasoning": "La consulta solo pide buscar en RAG",
-        "is_safe_query": True
-    }
+    data = {"reasoning": "La consulta solo pide buscar en RAG", "is_safe_query": True}
     obj = SafeQueryClassification(**data)
     assert obj.is_safe_query is True
     assert "buscar en RAG" in obj.reasoning
@@ -40,10 +37,7 @@ def test_safe_query_classification_schema_invalido():
 
 def test_intent_classification_schema_valido():
     """Valida el esquema Pydantic para intenciones de redmine/rag/general."""
-    data = {
-        "reasoning": "Quiere listar issues",
-        "intent": "redmine_mcp"
-    }
+    data = {"reasoning": "Quiere listar issues", "intent": "redmine_mcp"}
     obj = IntentClassification(**data)
     assert obj.intent == "redmine_mcp"
 
@@ -56,19 +50,19 @@ def test_intent_classification_schema_invalido():
 
 def test_route_after_analyze():
     """Verifica que el enrutador condicional principal funcione correctamente."""
-    
+
     # Caso 1: RAG
     estado_rag = {"intent": "rag_query"}
     assert route_after_analyze(estado_rag) == "rag_query"
-    
+
     # Caso 2: Redmine MCP
     estado_mcp = {"intent": "redmine_mcp"}
     assert route_after_analyze(estado_mcp) == "redmine_agent"
-    
+
     # Caso 3: General
     estado_general = {"intent": "general"}
     assert route_after_analyze(estado_general) == "respond_general"
-    
+
     # Caso 4: Intención desconocida o no seteada (fallback a general)
     estado_vacio = {}
     assert route_after_analyze(estado_vacio) == "respond_general"
@@ -81,7 +75,7 @@ def test_build_graph_compiles_successfully():
     """
     workflow = build_graph()
     graph = workflow.compile()
-    
+
     # Aseguramos que se creó un CompiledStateGraph y tiene nodos iniciales
     assert graph is not None
     assert hasattr(graph, "invoke")

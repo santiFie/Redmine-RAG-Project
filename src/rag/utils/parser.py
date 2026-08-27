@@ -10,7 +10,8 @@ Responsabilidades:
 
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
+
 from llama_index.core.node_parser import HierarchicalNodeParser, get_leaf_nodes
 from llama_index.core.schema import BaseNode
 

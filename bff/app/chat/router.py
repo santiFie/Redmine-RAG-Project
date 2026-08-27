@@ -36,20 +36,24 @@ router = APIRouter(prefix="/chat", tags=["Chat"])
 # Schemas
 # ---------------------------------------------------------------------------
 
+
 class StreamRequest(BaseModel):
     """Petición de streaming al agente."""
+
     message: str
     thread_id: str | None = None
 
 
 class ThreadResponse(BaseModel):
     """Respuesta con el ID del thread creado."""
+
     thread_id: str
 
 
 # ---------------------------------------------------------------------------
 # Helpers SSE
 # ---------------------------------------------------------------------------
+
 
 def _sse(event: str, data: dict | str) -> str:
     """Formatea un evento SSE según el estándar W3C."""
@@ -91,7 +95,7 @@ async def _stream_langgraph(
         # Estado para trackear el tamaño de los mensajes y filtrar por nodo
         seen_lengths = {}
         message_nodes = {}
-        
+
         async for chunk in client.runs.stream(
             thread_id,
             settings.langgraph_graph_id,
@@ -116,12 +120,12 @@ async def _stream_langgraph(
                         msg_id = msg.get("id")
                         if not msg_id:
                             continue
-                            
+
                         # Filtrar mensajes de nodos internos (reasoning/structured output)
                         node = message_nodes.get(msg_id)
                         if node in ("analyze_safe_query", "analyze_intent"):
                             continue
-                            
+
                         content = _extract_content(msg)
                         if content:
                             last_len = seen_lengths.get(msg_id, 0)
@@ -138,13 +142,12 @@ async def _stream_langgraph(
                             yield event
 
             # ── Mensajes completos ──────────────────────────────────────────
-            elif event_type == "messages/complete":
-                if isinstance(data, list):
-                    for msg in data:
-                        # Extraer tool calls del mensaje si los hay
-                        tool_calls = _extract_tool_calls(msg)
-                        for tc in tool_calls:
-                            yield _sse("tool_call", tc)
+            elif event_type == "messages/complete" and isinstance(data, list):
+                for msg in data:
+                    # Extraer tool calls del mensaje si los hay
+                    tool_calls = _extract_tool_calls(msg)
+                    for tc in tool_calls:
+                        yield _sse("tool_call", tc)
 
     except Exception as exc:
         yield _sse("error", {"message": str(exc)})
@@ -205,11 +208,16 @@ def _process_node_update(node_name: str, update: dict) -> list[str]:
     # Detectar resultados de herramientas (ToolMessage)
     for msg in update.get("messages", []):
         if isinstance(msg, dict) and msg.get("type") == "tool":
-            events.append(_sse("tool_result", {
-                "tool_call_id": msg.get("tool_call_id", ""),
-                "name": msg.get("name", ""),
-                "content": str(msg.get("content", ""))[:500],  # truncar para SSE
-            }))
+            events.append(
+                _sse(
+                    "tool_result",
+                    {
+                        "tool_call_id": msg.get("tool_call_id", ""),
+                        "name": msg.get("name", ""),
+                        "content": str(msg.get("content", ""))[:500],  # truncar para SSE
+                    },
+                )
+            )
 
     return events
 
@@ -217,6 +225,7 @@ def _process_node_update(node_name: str, update: dict) -> list[str]:
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
+
 
 @router.post(
     "/threads",
@@ -243,7 +252,7 @@ async def create_thread(
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=f"No se pudo conectar con LangGraph Platform: {exc}",
-        )
+        ) from exc
 
 
 @router.post(
@@ -286,7 +295,7 @@ async def stream_chat(
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail=f"No se pudo crear el thread en LangGraph: {exc}",
-            )
+            ) from exc
 
     username = current_user.get("sub", "unknown")
 

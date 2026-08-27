@@ -450,9 +450,7 @@ class FallbackLLM(LLM):
         return await self._intentar_async("achat", messages, **kwargs)
 
     @llm_chat_callback()
-    def astream_chat(
-        self, messages: Sequence[ChatMessage], **kwargs: Any
-    ) -> ChatResponseAsyncGen:
+    def astream_chat(self, messages: Sequence[ChatMessage], **kwargs: Any) -> ChatResponseAsyncGen:
         """
         Delega a ``achat`` sin streaming real.
         Ragas no usa streaming; este stub cumple el contrato de tipos de BaseLLM.
@@ -592,7 +590,6 @@ def query_engine_metadata_filter(fallback_llm: FallbackLLM, rag_engine: RAGEngin
     return RetrieverQueryEngine.from_args(merging_retriever, llm=fallback_llm)
 
 
-
 # ---------------------------------------------------------------------------
 # Fixtures: LLM y Embeddings evaluadores (usados por Ragas como jueces)
 # ---------------------------------------------------------------------------
@@ -675,9 +672,7 @@ def _save_results(resultado: Any, suffix: str = "") -> None:
 
         # Archivo canónico (sobreescrito en cada run): permite que el dashboard
         # encuentre siempre el resultado más reciente sin listar el directorio.
-        nombre_canonico = (
-            f"scores_{suffix}_latest.json" if suffix else "scores_latest.json"
-        )
+        nombre_canonico = f"scores_{suffix}_latest.json" if suffix else "scores_latest.json"
         (_RESULTS_DIR / nombre_canonico).write_text(
             json.dumps(scores, indent=2, ensure_ascii=False)
         )

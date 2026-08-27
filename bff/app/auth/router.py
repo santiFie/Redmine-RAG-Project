@@ -22,14 +22,17 @@ router = APIRouter(prefix="/auth", tags=["Autenticación"])
 # Schemas de request / response
 # ---------------------------------------------------------------------------
 
+
 class LoginRequest(BaseModel):
     """Credenciales de login."""
+
     username: str
     password: str
 
 
 class TokenResponse(BaseModel):
     """Respuesta con el JWT generado."""
+
     access_token: str
     token_type: str = "bearer"
     display_name: str
@@ -38,6 +41,7 @@ class TokenResponse(BaseModel):
 
 class UserResponse(BaseModel):
     """Datos del usuario autenticado."""
+
     username: str
     display_name: str
     role: str
@@ -46,6 +50,7 @@ class UserResponse(BaseModel):
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
+
 
 @router.post(
     "/login",

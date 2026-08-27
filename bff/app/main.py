@@ -56,6 +56,7 @@ app.include_router(chat_router)
 # Health Check
 # ---------------------------------------------------------------------------
 
+
 @app.get("/health", tags=["Sistema"], summary="Estado del servicio")
 async def health() -> dict:
     """Endpoint de health check para load balancers y Docker healthcheck."""

@@ -13,6 +13,7 @@ import random
 import sys
 import time
 from pathlib import Path
+
 from dotenv import load_dotenv
 
 # Asegurar que el path del proyecto esté en sys.path para importaciones
@@ -20,16 +21,16 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.redmine.client import RedmineClient
+from src.redmine.client import RedmineClient  # noqa: E402
 
 load_dotenv()
 
 
 def generate_test_data():
     project_id = os.getenv("REDMINE_TEST_PROJECT_ID", "my-project")
-    
+
     print(f"Generando datos de prueba en el proyecto: {project_id}...")
-    
+
     issues_data = [
         {
             "subject": "[Documentación] Guía de Configuración de VPN (OpenVPN) para Nuevos Empleados",
@@ -50,8 +51,8 @@ h2. Solución de problemas frecuentes
 Por favor, mantengan esta documentación actualizada.""",
             "notes": [
                 "Actualizado el enlace del portal interno, ahora usamos https://vpn.techvanguard.com.",
-                "Agregada nota sobre el bloqueo del puerto UDP en algunas redes de cafeterías."
-            ]
+                "Agregada nota sobre el bloqueo del puerto UDP en algunas redes de cafeterías.",
+            ],
         },
         {
             "subject": "Incidencia Crítica: Caída de la base de datos de producción (PostgreSQL)",
@@ -63,8 +64,8 @@ Es necesario investigar la causa de la saturación del pool de conexiones.""",
             "notes": [
                 "Revisando los logs de la aplicación, parece que un cronjob de reportes masivos no está cerrando las conexiones correctamente.",
                 "Solución temporal aplicada: Se reinició el servicio de pgBouncer y se incrementó max_connections a 500 en postgresql.conf. El servicio está restablecido.",
-                "Causa raíz identificada: El microservicio de reportes financieros filtraba conexiones. Se creó un ticket en desarrollo para parchear la fuga de memoria y conexiones."
-            ]
+                "Causa raíz identificada: El microservicio de reportes financieros filtraba conexiones. Se creó un ticket en desarrollo para parchear la fuga de memoria y conexiones.",
+            ],
         },
         {
             "subject": "[Infra] Migración de servidores On-Premise a AWS EC2",
@@ -83,8 +84,8 @@ Adjuntaremos los avances como comentarios.""",
             "notes": [
                 "Fase 1 completada. El costo estimado mensual es de $1,200 USD. Procedemos con la Fase 2.",
                 "VPC creada con las subredes 10.0.1.0/24 (Pública) y 10.0.2.0/24 (Privada).",
-                "Problema encontrado: El túnel IPSec tiene caídas intermitentes debido a una mala configuración de MTU en el router on-premise."
-            ]
+                "Problema encontrado: El túnel IPSec tiene caídas intermitentes debido a una mala configuración de MTU en el router on-premise.",
+            ],
         },
         {
             "subject": "Error 502 Bad Gateway en el balanceador de carga Nginx",
@@ -94,8 +95,8 @@ El balanceador Nginx está configurado con upstream hacia tres nodos de la aplic
             "notes": [
                 "He revisado los logs de Nginx y veo: `upstream prematurely closed connection while reading response header from upstream`.",
                 "Parece que los nodos de Node.js se están reiniciando por falta de memoria (OOM Killer).",
-                "He aumentado el límite de memoria de los contenedores Docker de 512MB a 1GB. Monitoreando."
-            ]
+                "He aumentado el límite de memoria de los contenedores Docker de 512MB a 1GB. Monitoreando.",
+            ],
         },
         {
             "subject": "[Wiki] Estándares de Seguridad de Contraseñas y MFA",
@@ -106,7 +107,7 @@ Todo empleado con acceso a sistemas de producción debe cumplir con los siguient
 * *Contraseñas*: Mínimo 14 caracteres, alfanuméricas con símbolos. Debe cambiarse cada 90 días. No se pueden reutilizar las últimas 5 contraseñas.
 * *MFA (Multi-Factor Authentication)*: Obligatorio para todos los sistemas (AWS, Redmine, VPN, Correo). Se recomiendan llaves FIDO2 o aplicaciones autenticadoras (Google Authenticator, Authy). No se permite el uso de SMS para MFA.
 
-El equipo de IT auditará trimestralmente el cumplimiento de estas normas."""
+El equipo de IT auditará trimestralmente el cumplimiento de estas normas.""",
         },
         {
             "subject": "[DevOps] Implementación de Pipeline CI/CD con GitHub Actions y Kubernetes (EKS)",
@@ -126,8 +127,8 @@ h2. Variables y Secretos Requeridos
             "notes": [
                 "El primer despliegue falló por falta de permisos en el rol IAM `GitHubActionsEKSDeployerRole`.",
                 "Se adjuntó la política `AmazonEKSClusterPolicy` al rol y el despliegue en staging concluyó exitosamente.",
-                "Pendiente: Agregar paso de escaneo de imágenes de contenedor con Trivy antes del despliegue a producción."
-            ]
+                "Pendiente: Agregar paso de escaneo de imágenes de contenedor con Trivy antes del despliegue a producción.",
+            ],
         },
         {
             "subject": "[Soporte IT] Solicitud de permisos y accesos para nueva desarrolladora Backend",
@@ -141,8 +142,8 @@ Se requiere acceso a los siguientes recursos:
             "notes": [
                 "Cuenta de email y GitHub activados. Agregada al equipo `Backend-Team` en GitHub.",
                 "Creado usuario IAM `ana.martinez` con autenticación MFA obligatoria.",
-                "Pendiente confirmación del líder técnico para otorgar credenciales de acceso a la DB de Staging."
-            ]
+                "Pendiente confirmación del líder técnico para otorgar credenciales de acceso a la DB de Staging.",
+            ],
         },
         {
             "subject": "Investigación: Fuga de Memoria (Memory Leak) en Servicio de Autenticación",
@@ -153,8 +154,8 @@ Se requiere un análisis del Heap Dump y métricas JVM.""",
             "notes": [
                 "Tomamos un Heap Dump con `jcmd 1 GC.heap_dump /tmp/heap.hprof`. El analizador Eclipse MAT muestra que el 65% de los objetos retenidos corresponden a sesiones HTTP expiradas no liberadas.",
                 "Se ajustó el Garbage Collector en las opciones JVM: `-XX:+UseG1GC -XX:MaxGCPauseMillis=200 -Xms1g -Xmx2g`.",
-                "Parche aplicado: Se actualizó el parámetro `session-timeout` a 30 minutos y se habilitó la limpieza proactiva de sesiones inactivas en la base de datos de Redis."
-            ]
+                "Parche aplicado: Se actualizó el parámetro `session-timeout` a 30 minutos y se habilitó la limpieza proactiva de sesiones inactivas en la base de datos de Redis.",
+            ],
         },
         {
             "subject": "[Wiki] Plan de Recuperación ante Desastres (Disaster Recovery & Backup Policy)",
@@ -175,15 +176,22 @@ pg_restore --clean --if-exists -h localhost -U postgres -d techvanguard_prod /tm
 ```""",
             "notes": [
                 "Simulacro de restauración realizado el 15 de julio: Tiempo de recuperación efectivo RTO fue de 2 horas y 15 minutos. Cumple con los SLAs exigidos."
-            ]
-        }
+            ],
+        },
     ]
 
     # Generación de 50 tickets aleatorios adicionales
-    trackers = [1, 2, 3] # 1: Error, 2: Tarea, 3: Soporte
-    statuses = [1, 2, 3, 4, 5, 6] # 1: Nueva, 2: En curso, 3: Resuelta, 4: Comentarios, 5: Cerrada, 6: Rechazada
-    priorities = [1, 2, 3, 4, 5] # 1: Baja, 2: Normal, 3: Alta, 4: Urgente, 5: Inmediata
-    users = [1, 6, 7, 8] # 1: admin, 6: admin2, 7: Mariano, 8: facundo
+    trackers = [1, 2, 3]  # 1: Error, 2: Tarea, 3: Soporte
+    statuses = [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+    ]  # 1: Nueva, 2: En curso, 3: Resuelta, 4: Comentarios, 5: Cerrada, 6: Rechazada
+    priorities = [1, 2, 3, 4, 5]  # 1: Baja, 2: Normal, 3: Alta, 4: Urgente, 5: Inmediata
+    users = [1, 6, 7, 8]  # 1: admin, 6: admin2, 7: Mariano, 8: facundo
     projects = ["infraestructura-de-servicios", "proyecto-prueba"]
 
     realistic_templates = [
@@ -193,8 +201,8 @@ pg_restore --clean --if-exists -h localhost -U postgres -d techvanguard_prod /tm
             "notes": [
                 "Se ha creado un branch para aplicar el parche de seguridad.",
                 "El parche ha pasado las pruebas en entorno de QA. Procedemos con el paso a producción.",
-                "Despliegue completado. El nuevo escaneo de Trivy muestra 0 vulnerabilidades críticas."
-            ]
+                "Despliegue completado. El nuevo escaneo de Trivy muestra 0 vulnerabilidades críticas.",
+            ],
         },
         {
             "subject": "Problema de Rendimiento: Consultas lentas en {component}",
@@ -202,8 +210,8 @@ pg_restore --clean --if-exists -h localhost -U postgres -d techvanguard_prod /tm
             "notes": [
                 "He revisado el EXPLAIN ANALYZE y efectivamente se está haciendo un Seq Scan en la tabla que tiene más de 10 millones de registros.",
                 "Se ha generado el script de migración Flyway para agregar el índice `CONCURRENTLY`.",
-                "Migración ejecutada en producción. La latencia bajó de 5s a 45ms. Problema resuelto."
-            ]
+                "Migración ejecutada en producción. La latencia bajó de 5s a 45ms. Problema resuelto.",
+            ],
         },
         {
             "subject": "Incidencia: Pods de {component} reiniciando constantemente (CrashLoopBackOff)",
@@ -211,16 +219,16 @@ pg_restore --clean --if-exists -h localhost -U postgres -d techvanguard_prod /tm
             "notes": [
                 "Se verificó que Redis está operativo, pero hubo un cambio reciente en las NetworkPolicies de Calico.",
                 "El cambio bloqueó el tráfico saliente en el puerto 6379 desde el namespace del componente. Se está revirtiendo el commit.",
-                "Commit revertido y pods en estado Running nuevamente."
-            ]
+                "Commit revertido y pods en estado Running nuevamente.",
+            ],
         },
         {
             "subject": "[Wiki] Procedimiento de Onboarding Técnico para {component}",
             "description": "h1. Guía de Inicio Rápido: {component}\n\nBienvenidos al repositorio principal de `{component}`.\n\nh2. Requisitos Previos\n* Docker y Docker Compose v2\n* Python 3.11+\n* Node.js 20.x (para los assets estáticos)\n\nh2. Instalación Local\n1. Clonar el repositorio y configurar variables de entorno:\n```bash\ncp .env.example .env\n# Solicitar la clave de API de desarrollo a un administrador\n```\n2. Levantar la base de datos de desarrollo:\n```bash\ndocker-compose up -d db redis\n```\n3. Ejecutar las migraciones:\n```bash\nmake migrate\n```\n\nh2. Arquitectura\nEste servicio se comunica mediante gRPC con el backend central y publica eventos en Kafka (topic: `events.{component}`).",
             "notes": [
                 "Se actualizó la guía para incluir la dependencia de Node.js 20.x, ya que antes usábamos la 18.",
-                "Añadida la aclaración sobre cómo solicitar las credenciales de desarrollo en Vault."
-            ]
+                "Añadida la aclaración sobre cómo solicitar las credenciales de desarrollo en Vault.",
+            ],
         },
         {
             "subject": "Error 504 Gateway Timeout en la API de {component}",
@@ -228,8 +236,8 @@ pg_restore --clean --if-exists -h localhost -U postgres -d techvanguard_prod /tm
             "notes": [
                 "El escalado manual mitigó el problema. El tráfico se ha estabilizado.",
                 "Descubrimos que el endpoint `/api/v1/export` estaba siendo llamado recursivamente por un script malicioso.",
-                "Se ha implementado rate limiting en el WAF para la ruta de exportación. Monitoreando."
-            ]
+                "Se ha implementado rate limiting en el WAF para la ruta de exportación. Monitoreando.",
+            ],
         },
         {
             "subject": "Renovación de Certificados Let's Encrypt en {component}",
@@ -237,8 +245,8 @@ pg_restore --clean --if-exists -h localhost -U postgres -d techvanguard_prod /tm
             "notes": [
                 "Revisando los logs, certbot falló por un problema de resolución DNS temporal durante la validación HTTP-01.",
                 "He ejecutado la renovación manual exitosamente y recargado Nginx.",
-                "Se configuró una alerta adicional en Datadog para monitorear los fallos del cronjob de certbot en el futuro."
-            ]
+                "Se configuró una alerta adicional en Datadog para monitorear los fallos del cronjob de certbot en el futuro.",
+            ],
         },
         {
             "subject": "[DevOps] Migración de CI/CD hacia GitLab CI para {component}",
@@ -246,8 +254,8 @@ pg_restore --clean --if-exists -h localhost -U postgres -d techvanguard_prod /tm
             "notes": [
                 "Pipeline básico implementado en GitLab. Falta integrar la autenticación con el Registry.",
                 "Se configuraron las variables CI/CD protegidas. El paso de build ya funciona.",
-                "Migración completada. ArgoCD ha sincronizado exitosamente la primera imagen generada por GitLab CI. Apagando el job en Jenkins."
-            ]
+                "Migración completada. ArgoCD ha sincronizado exitosamente la primera imagen generada por GitLab CI. Apagando el job en Jenkins.",
+            ],
         },
         {
             "subject": "Bug Visual: Error de alineación en Safari para {component}",
@@ -255,15 +263,22 @@ pg_restore --clean --if-exists -h localhost -U postgres -d techvanguard_prod /tm
             "notes": [
                 "Confirmado. El problema ocurre en Safari 14.1 específicamente. Añadiendo fix.",
                 "El PR #442 resuelve el problema implementando márgenes en lugar de gap condicionalmente para navegadores legacy.",
-                "Desplegado a producción. Bug cerrado."
-            ]
-        }
+                "Desplegado a producción. Bug cerrado.",
+            ],
+        },
     ]
 
     components_list = [
-        "Auth Service", "Payment Gateway", "User Dashboard", "Inventory API", 
-        "Notification Worker", "Data Pipeline", "CRM Integration", "Mobile App Backend",
-        "Frontend SPA", "Admin Panel"
+        "Auth Service",
+        "Payment Gateway",
+        "User Dashboard",
+        "Inventory API",
+        "Notification Worker",
+        "Data Pipeline",
+        "CRM Integration",
+        "Mobile App Backend",
+        "Frontend SPA",
+        "Admin Panel",
     ]
 
     print("Generando 50 tickets aleatorios adicionales con ejemplos reales...")
@@ -273,7 +288,7 @@ pg_restore --clean --if-exists -h localhost -U postgres -d techvanguard_prod /tm
         cve_id = f"2023-{random.randint(1000, 99999)}"
         subnet = random.randint(10, 200)
         rnd_id = random.randint(100, 9999)
-        
+
         subj = template["subject"].replace("{component}", comp).replace("{cve_id}", cve_id)
         desc = (
             template["description"]
@@ -282,52 +297,58 @@ pg_restore --clean --if-exists -h localhost -U postgres -d techvanguard_prod /tm
             .replace("{subnet}", str(subnet))
             .replace("{random_id}", str(rnd_id))
         )
-        
+
         max_notes = len(template["notes"])
         num_notes = random.randint(0, max_notes)
         issue_notes = template["notes"][:num_notes] if num_notes > 0 else []
-        
-        issues_data.append({
-            "subject": subj,
-            "description": desc,
-            "notes": issue_notes,
-            "tracker_id": random.choice(trackers),
-            "status_id": random.choice(statuses),
-            "priority_id": random.choice(priorities),
-            "assigned_to_id": random.choice(users),
-            "project_id": random.choice(projects)
-        })
+
+        issues_data.append(
+            {
+                "subject": subj,
+                "description": desc,
+                "notes": issue_notes,
+                "tracker_id": random.choice(trackers),
+                "status_id": random.choice(statuses),
+                "priority_id": random.choice(priorities),
+                "assigned_to_id": random.choice(users),
+                "project_id": random.choice(projects),
+            }
+        )
 
     try:
         with RedmineClient() as client:
             for item in issues_data:
                 t_project_id = item.get("project_id", project_id)
                 print(f"Creando ticket: {item['subject']} en proyecto {t_project_id}")
-                
+
                 kwargs = {}
-                if "tracker_id" in item: kwargs["tracker_id"] = item["tracker_id"]
-                if "status_id" in item: kwargs["status_id"] = item["status_id"]
-                if "priority_id" in item: kwargs["priority_id"] = item["priority_id"]
-                if "assigned_to_id" in item: kwargs["assigned_to_id"] = item["assigned_to_id"]
-                
+                if "tracker_id" in item:
+                    kwargs["tracker_id"] = item["tracker_id"]
+                if "status_id" in item:
+                    kwargs["status_id"] = item["status_id"]
+                if "priority_id" in item:
+                    kwargs["priority_id"] = item["priority_id"]
+                if "assigned_to_id" in item:
+                    kwargs["assigned_to_id"] = item["assigned_to_id"]
+
                 created = client.create_issue(
                     project_id=t_project_id,
-                    subject=item['subject'],
-                    description=item['description'],
-                    **kwargs
+                    subject=item["subject"],
+                    description=item["description"],
+                    **kwargs,
                 )
                 issue_id = created.get("id")
-                
+
                 print(f" -> Ticket #{issue_id} creado exitosamente.")
-                
+
                 if "notes" in item and item["notes"]:
                     for note in item["notes"]:
                         print(f"    Agregando nota al ticket #{issue_id}...")
                         client.update_issue(issue_id=issue_id, notes=note)
                         time.sleep(0.5)
-                        
+
             print("\n¡Todos los datos de prueba han sido generados exitosamente!")
-            
+
     except Exception as e:
         print(f"Error durante la generación de tickets: {e}")
 

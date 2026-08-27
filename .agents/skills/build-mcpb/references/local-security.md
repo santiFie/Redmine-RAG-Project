@@ -32,6 +32,7 @@ function safeJoin(root: string, userPath: string): string {
 ```python
 from pathlib import Path
 
+
 def safe_join(root: Path, user_path: str) -> Path:
     full = (root / user_path).resolve()
     if not full.is_relative_to(root.resolve()):

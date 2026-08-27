@@ -19,6 +19,7 @@ Ejecución:
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import uuid
 
@@ -70,19 +71,15 @@ def engine():
     yield motor
 
     # Teardown: borrar la colección temporal de Qdrant
-    try:
+    with contextlib.suppress(Exception):
         motor._qdrant.delete_collection(coleccion_temporal)
-    except Exception:
-        pass
 
     # Teardown: eliminar los nodos del docstore (Postgres) asociados al issue
-    try:
+    with contextlib.suppress(Exception):
         motor._index.delete_ref_doc(
             str(_ISSUE_EJEMPLO["id"]),
             delete_from_docstore=True,
         )
-    except Exception:
-        pass
 
 
 # ---------------------------------------------------------------------------
@@ -112,12 +109,8 @@ def test_query_retorna_contexto(engine: RAGEngine) -> None:
 
     assert isinstance(resultado, str), "query() debe retornar un str."
     assert resultado.strip(), "query() no debe retornar un string vacío."
-    assert "Score:" in resultado, (
-        "El contexto formateado debe contener la etiqueta 'Score:'."
-    )
-    assert "Texto:" in resultado, (
-        "El contexto formateado debe contener la etiqueta 'Texto:'."
-    )
+    assert "Score:" in resultado, "El contexto formateado debe contener la etiqueta 'Score:'."
+    assert "Texto:" in resultado, "El contexto formateado debe contener la etiqueta 'Texto:'."
 
 
 @pytest.mark.integration
@@ -131,9 +124,5 @@ async def test_aquery_retorna_contexto(engine: RAGEngine) -> None:
 
     assert isinstance(resultado, str), "aquery() debe retornar un str."
     assert resultado.strip(), "aquery() no debe retornar un string vacío."
-    assert "Score:" in resultado, (
-        "El contexto formateado debe contener la etiqueta 'Score:'."
-    )
-    assert "Texto:" in resultado, (
-        "El contexto formateado debe contener la etiqueta 'Texto:'."
-    )
+    assert "Score:" in resultado, "El contexto formateado debe contener la etiqueta 'Score:'."
+    assert "Texto:" in resultado, "El contexto formateado debe contener la etiqueta 'Texto:'."

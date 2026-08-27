@@ -44,24 +44,29 @@ load_dotenv()
 # Estado del Agente
 # ==============================================================================
 
+
 class State(TypedDict):
     messages: Annotated[list[Any], add_messages]
     user_input: NotRequired[str | None]  # opcional: lo escribe analyze_safe_query
     is_safe_query: NotRequired[bool]  # opcional: puede faltar si analyze_safe_query falla
-    intent: Literal["query_issue", "create_issue", "update_issue", "list_issues", "search_docs", "general"]
-    redmine_result: str          # resultado serializado del redmine_agent
-    rag_context: str             # contexto recuperado por LlamaIndex
+    intent: Literal[
+        "query_issue", "create_issue", "update_issue", "list_issues", "search_docs", "general"
+    ]
+    redmine_result: str  # resultado serializado del redmine_agent
+    rag_context: str  # contexto recuperado por LlamaIndex
     final_answer: str
     error: str | None
-
 
 
 # ==============================================================================
 # Nodo 0: Clasificación de intención
 # ==============================================================================
 
+
 class SafeQueryClassification(BaseModel):
-    reasoning: str = Field(description="Breve razonamiento paso a paso de por qué elegiste esa intención")
+    reasoning: str = Field(
+        description="Breve razonamiento paso a paso de por qué elegiste esa intención"
+    )
     is_safe_query: bool
 
 
@@ -91,16 +96,20 @@ async def analyze_safe_query(state: State) -> State:
     response = await structured_llm.ainvoke([sys_msg, HumanMessage(content=user_input)])
 
     return {
-        "user_input": user_input,       # string limpio para los nodos siguientes
+        "user_input": user_input,  # string limpio para los nodos siguientes
         "is_safe_query": response.is_safe_query,
     }
+
 
 # ==============================================================================
 # Nodo 1: Clasificación de intención
 # ==============================================================================
 
+
 class IntentClassification(BaseModel):
-    reasoning: str = Field(description="Breve razonamiento paso a paso de por qué elegiste esa intención")
+    reasoning: str = Field(
+        description="Breve razonamiento paso a paso de por qué elegiste esa intención"
+    )
     intent: Literal["redmine_mcp", "rag_query", "general"]
 
 
@@ -145,8 +154,8 @@ async def analyze_intent(state: State) -> State:
 # Rutas resueltas una sola vez al importar el módulo.
 # Path(__file__) apunta a src/agent/graph.py → .parent.parent.parent = raíz del proyecto.
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-_MCP_SERVER   = _PROJECT_ROOT / "mcp" / "redmine" / "server.py"
-_PYTHON_EXE   = _PROJECT_ROOT / ".venv" / "bin" / "python"
+_MCP_SERVER = _PROJECT_ROOT / "mcp" / "redmine" / "server.py"
+_PYTHON_EXE = _PROJECT_ROOT / ".venv" / "bin" / "python"
 
 
 def make_redmine_agent_node():
@@ -165,7 +174,7 @@ def make_redmine_agent_node():
             "args": [str(_MCP_SERVER)],
             "transport": "stdio",
             "env": {
-                "REDMINE_URL":     os.getenv("REDMINE_URL", ""),
+                "REDMINE_URL": os.getenv("REDMINE_URL", ""),
                 "REDMINE_API_KEY": os.getenv("REDMINE_API_KEY", ""),
                 "PYTHONPATH": str(_PROJECT_ROOT / "mcp" / "redmine"),
             },
@@ -226,7 +235,9 @@ def make_redmine_agent_node():
             (m for m in reversed(sub_result["messages"]) if isinstance(m, AIMessage) and m.content),
             None,
         )
-        agent_response = last_ai_msg.content if last_ai_msg else "Sin respuesta del agente de Redmine."
+        agent_response = (
+            last_ai_msg.content if last_ai_msg else "Sin respuesta del agente de Redmine."
+        )
 
         return {
             "redmine_result": agent_response,
@@ -249,7 +260,6 @@ def make_redmine_agent_node():
 _rag_engine: RAGEngine = RAGEngine()
 
 
-
 def get_rag_engine() -> RAGEngine:
     return _rag_engine
 
@@ -267,9 +277,11 @@ async def rag_query(state: State):
 
     return {"rag_context": context}
 
+
 # ==============================================================================
 # Nodo 4: Respond — LLM unificado con contexto RAG
 # ==============================================================================
+
 
 async def respond(state: State) -> State:
     """
@@ -294,7 +306,9 @@ async def respond(state: State) -> State:
     rag_context = state.get("rag_context", "")
 
     if not rag_context:
-        raise ValueError("No se recuperó contexto del RAG. Revise si existe contexto indexado o si la pregunta es válida.")
+        raise ValueError(
+            "No se recuperó contexto del RAG. Revise si existe contexto indexado o si la pregunta es válida."
+        )
 
     sys_msg = SystemMessage(
         content=(
@@ -320,6 +334,7 @@ async def respond(state: State) -> State:
 # ==============================================================================
 # Nodo 5: Respond general (sin RAG — para intenciones "general")
 # ==============================================================================
+
 
 async def respond_general(state: State) -> State:
     """
@@ -349,6 +364,7 @@ async def respond_general(state: State) -> State:
 # Nodo 6: Guardrail de Salida (Guardrails AI)
 # ==============================================================================
 
+
 async def output_guardrail(state: State) -> State:
     """
     Nodo de guardrail de salida usando Guardrails AI.
@@ -366,7 +382,9 @@ async def output_guardrail(state: State) -> State:
         if outcome.validation_passed:
             validated_text = outcome.validated_output or content
         else:
-            validated_text = "Lo siento, la respuesta generada no superó los controles de seguridad y calidad."
+            validated_text = (
+                "Lo siento, la respuesta generada no superó los controles de seguridad y calidad."
+            )
     except Exception:
         validated_text = content
 
@@ -378,6 +396,7 @@ async def output_guardrail(state: State) -> State:
 # ==============================================================================
 # Router (Edge Condicional)
 # ==============================================================================
+
 
 def route_after_analyze(state: State) -> str:
     intent = state.get("intent", "general")
@@ -393,6 +412,7 @@ def route_after_analyze(state: State) -> str:
 # ==============================================================================
 # Construcción del Grafo
 # ==============================================================================
+
 
 def build_graph() -> StateGraph:
     workflow = StateGraph(State)

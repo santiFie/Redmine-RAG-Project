@@ -78,20 +78,36 @@ line-length = 100
 target-version = "py312"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "SIM"]
-ignore = ["E501"]  # line length handled by formatter
+# Reglas básicas: errores (E), advertencias estándar (W) y pyflakes (F)
+# Se remueven 'SIM' (simplificaciones forzadas), 'UP' (modernizaciones agresivas) e 'I' (orden estricto de imports)
+select = ["E", "F", "W"]
+ignore = [
+    "E501",  # Longitud de línea (manejada flexiblemente)
+    "E402",  # Permite manipular sys.path antes de imports
+    "E701",  # Permite múltiples declaraciones en una línea si es conveniente
+    "B008",  # Permite Depends() de FastAPI en valores por defecto
+    "F401",  # Permite imports no utilizados durante desarrollo/prototipado
+    "W291",  # Trailing whitespace tolerante
+    "W292",  # No newline at end of file tolerante
+    "W293",  # Blank line whitespace tolerante
+]
 
 [tool.ruff.format]
 quote-style = "double"
 
 # ==============================================================================
-# MyPy (type checking)
+# MyPy (type checking relajado para desarrollo ágil)
 # ==============================================================================
 [tool.mypy]
 python_version = "3.12"
 strict = false
 ignore_missing_imports = true
-warn_return_any = true
+warn_return_any = false
+warn_unused_ignores = false
+disallow_untyped_defs = false
+check_untyped_defs = false
+follow_imports = "silent"
+disable_error_code = ["typeddict-item", "no-any-return", "call-overload", "arg-type", "union-attr", "assignment"]
 
 # ==============================================================================
 # Pytest

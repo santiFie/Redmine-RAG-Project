@@ -21,7 +21,7 @@ def test_health_check_endpoint():
     """Valida que el endpoint /health devuelve 200 y el formato JSON esperado."""
     response = client.get("/health")
     assert response.status_code == 200
-    
+
     data = response.json()
     assert data["status"] == "ok"
     assert data["service"] == "bff"

@@ -11,6 +11,7 @@ Responsabilidades:
 from __future__ import annotations
 
 from typing import Any
+
 from llama_index.core.schema import TextNode
 
 
@@ -30,7 +31,9 @@ def parse_redmine_issue_to_nodes(issue_data: dict[str, Any]) -> list[TextNode]:
     project_name = issue_data.get("project", {}).get("name", "")
 
     # 1. NODO BASE: Título y Descripción del Ticket
-    main_text = f"Issue #{issue_id}: {issue_data.get('subject', '')}\n\n{issue_data.get('description', '')}"
+    main_text = (
+        f"Issue #{issue_id}: {issue_data.get('subject', '')}\n\n{issue_data.get('description', '')}"
+    )
     main_node = TextNode(
         text=main_text,
         id_=f"redmine_issue_{issue_id}_main",

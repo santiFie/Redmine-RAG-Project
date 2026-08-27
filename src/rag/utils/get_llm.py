@@ -1,4 +1,5 @@
 import os
+
 from dotenv import load_dotenv
 from llama_index.llms.groq import Groq
 
@@ -13,7 +14,9 @@ _LLM_REGISTRY = {
         model=os.getenv("LLM_MODEL", "meta/llama-3.1-70b-instruct"),
         api_key=os.getenv("NVIDIA_API_KEY", ""),
     ),
-    "openrouter": lambda: __import__("llama_index.llms.openai_like", fromlist=["OpenAILike"]).OpenAILike(
+    "openrouter": lambda: __import__(
+        "llama_index.llms.openai_like", fromlist=["OpenAILike"]
+    ).OpenAILike(
         model=os.getenv("LLM_MODEL", "meta-llama/llama-3.1-8b-instruct:free"),
         api_key=os.getenv("OPENROUTER_API_KEY", ""),
         api_base="https://openrouter.ai/api/v1",

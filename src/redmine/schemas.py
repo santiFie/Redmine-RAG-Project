@@ -16,13 +16,13 @@ TODO:
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
 
 from pydantic import BaseModel, Field
 
 
 class RedmineUser(BaseModel):
     """Representa un usuario referenciado en un issue."""
+
     id: int
     name: str
 
@@ -49,6 +49,7 @@ class RedmineProject(BaseModel):
 
 class RedmineJournal(BaseModel):
     """Entrada de diario / nota de un issue (historial de cambios)."""
+
     id: int
     user: RedmineUser
     notes: str | None = None
@@ -63,6 +64,7 @@ class RedmineIssue(BaseModel):
     Campos relacionados (journals, attachments, relations) se obtienen
     con el parámetro ?include= en la API.
     """
+
     id: int
     project: RedmineProject | None = None
     subject: str
@@ -84,16 +86,16 @@ class RedmineIssue(BaseModel):
         """Convierte el issue a texto plano para indexación con LlamaIndex."""
         issue_text = f"""
         ID: {self.id}
-        Proyecto: {self.project.name if self.project else 'N/A'}
+        Proyecto: {self.project.name if self.project else "N/A"}
         Asunto: {self.subject}
         Descripción: {self.description}
-        Estado: {self.status.name if self.status else 'N/A'}
-        Prioridad: {self.priority.name if self.priority else 'N/A'}
-        Autor: {self.author.name if self.author else 'N/A'}
-        Asignado a: {self.assigned_to.name if self.assigned_to else 'N/A'}
+        Estado: {self.status.name if self.status else "N/A"}
+        Prioridad: {self.priority.name if self.priority else "N/A"}
+        Autor: {self.author.name if self.author else "N/A"}
+        Asignado a: {self.assigned_to.name if self.assigned_to else "N/A"}
         Creado: {self.created_on}
         Actualizado: {self.updated_on}
         Porcentaje completado: {self.done_ratio}
         """
-        
+
         return issue_text

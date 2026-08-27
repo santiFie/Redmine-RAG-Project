@@ -148,4 +148,3 @@ User Query:
 
 Structured Request:
 """
-

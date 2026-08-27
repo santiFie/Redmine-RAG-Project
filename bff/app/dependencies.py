@@ -38,5 +38,5 @@ async def get_current_user(
         if not username:
             raise credentials_exception
         return payload
-    except JWTError:
-        raise credentials_exception
+    except JWTError as exc:
+        raise credentials_exception from exc

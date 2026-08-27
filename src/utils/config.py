@@ -40,7 +40,9 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------
     # Redmine
     # ------------------------------------------------------------------
-    redmine_url: AnyHttpUrl = Field(..., description="URL base de Redmine (ej. http://localhost:3000)")
+    redmine_url: AnyHttpUrl = Field(
+        ..., description="URL base de Redmine (ej. http://localhost:3000)"
+    )
     redmine_api_key: str = Field(..., description="API Key de Redmine (Perfil → API access key)")
     redmine_port: int = Field(default=3000)
 

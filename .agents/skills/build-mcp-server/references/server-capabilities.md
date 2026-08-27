@@ -16,7 +16,9 @@ const server = new McpServer(
 ```
 
 ```python
-mcp = FastMCP("my-server", instructions="Always call search_items before get_item — IDs aren't guessable.")
+mcp = FastMCP(
+    "my-server", instructions="Always call search_items before get_item — IDs aren't guessable."
+)
 ```
 
 This is the highest-leverage one-liner in the spec. If Claude keeps misusing your tools, put the fix here.
@@ -80,7 +82,7 @@ await extra.sendNotification({
 ```
 
 ```python
-await ctx.info("Processing", count=42)   # also: ctx.debug, ctx.warning, ctx.error
+await ctx.info("Processing", count=42)  # also: ctx.debug, ctx.warning, ctx.error
 ```
 
 Levels follow syslog: `debug`, `info`, `notice`, `warning`, `error`, `critical`, `alert`, `emergency`. Client sets minimum via `logging/setLevel`.

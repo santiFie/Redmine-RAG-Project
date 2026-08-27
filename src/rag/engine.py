@@ -54,6 +54,7 @@ logger = logging.getLogger(__name__)
 # Retriever async-compatible
 # ==============================================================================
 
+
 class AsyncAutoMergingRetriever(AutoMergingRetriever):
     """
     Subclase de AutoMergingRetriever que sobreescribe ``_aretrieve`` para hacer
@@ -84,6 +85,7 @@ class AsyncAutoMergingRetriever(AutoMergingRetriever):
         )
         return cur_nodes
 
+
 class RAGEngine:
     """
     Motor de Retrieval-Augmented Generation con LlamaIndex, Qdrant y estrategia Parent-Child.
@@ -100,7 +102,7 @@ class RAGEngine:
         # Inicilizar modelos
         self.llm_provider = llm_provider or os.getenv("LLM_PROVIDER", "groq").lower()
         factory = _LLM_REGISTRY.get(self.llm_provider)
-        
+
         if factory is None:
             raise ValueError(f"LLM Provider no soportado: {self.llm_provider}")
         self._llm = factory()
@@ -116,7 +118,7 @@ class RAGEngine:
         # Inicializar Qdrant
         self.collection_name = collection_name or "redmine_docs"
         self.qdrant_url = qdrant_url or os.getenv("QDRANT_URL", "http://localhost:6333")
-        
+
         raw_key = qdrant_api_key or os.getenv("QDRANT_API_KEY")
         self.qdrant_api_key = raw_key.strip() if raw_key and raw_key.strip() else None
 
@@ -137,7 +139,7 @@ class RAGEngine:
             aclient=self._async_qdrant,
             collection_name=self.collection_name,
             enable_hybrid=True,
-            fastembed_sparse_model="Qdrant/bm25"
+            fastembed_sparse_model="Qdrant/bm25",
         )
         self._storage_context = self._init_storage_context()
         self._index = self._load_or_create_index()
@@ -151,13 +153,11 @@ class RAGEngine:
         with contextlib.suppress(Exception):
             self._embed_model.get_query_embedding("warmup")
 
-
     def parse_redmine_issue_to_nodes(self, issue_data: dict[str, Any]) -> list[TextNode]:
         """
         Delegación al parser del dominio Redmine (mantenido por compatibilidad).
         """
         return parse_redmine_issue_to_nodes(issue_data)
-
 
     def index_documents(self, documents: list[Any]) -> None:
         """
@@ -165,9 +165,8 @@ class RAGEngine:
         """
         if not documents:
             return
-        
+
         self._index.insert_documents(documents)
-        
 
     def index_redmine_issues(self, issues: list[dict[str, Any]]) -> None:
         """
@@ -206,7 +205,6 @@ class RAGEngine:
             # Guardar e indexar únicamente los nodos hoja en Qdrant
             self._index.insert_nodes(leaf_nodes)
 
-
     def query(self, question: str, top_k: int = 5) -> str:
         """Método síncrono (mantenido para compatibilidad y tests)."""
         retriever = self._build_base_retriever(top_k)
@@ -226,9 +224,7 @@ class RAGEngine:
         )
         return self._format_context(nodes)
 
-    async def aquery(
-        self, question: str, top_k: int = 5
-    ) -> str:
+    async def aquery(self, question: str, top_k: int = 5) -> str:
         """
         Variante async de ``query``: usa ``AsyncAutoMergingRetriever`` para que
         la búsqueda vectorial en Qdrant no bloquee el event loop de LangGraph.
@@ -267,13 +263,12 @@ class RAGEngine:
             similarity_top_k=top_k,
             empty_query_top_k=10,
             extra_retriever_kwargs={
-                "alpha": 0.5,       # 0.5 balancea denso (embeddings) y sparse (BM25)
+                "alpha": 0.5,  # 0.5 balancea denso (embeddings) y sparse (BM25)
                 "sparse_top_k": 5,  # Top-k candidatos para la rama léxica
             },
         )
 
         return base_auto_retriever
-
 
     def _format_context(self, nodes: list[NodeWithScore]) -> str:
         """Convierte una lista de nodos recuperados en texto de contexto."""
@@ -285,18 +280,15 @@ class RAGEngine:
             full_context += f"Metadatos: {node.metadata}\n\n"
         return full_context
 
-
     def _init_storage_context(self) -> StorageContext:
         self._docstore = PostgresDocumentStore.from_uri(
-            uri=os.getenv("POSTGRES_URI", ""),
-            table_name="docstore"
+            uri=os.getenv("POSTGRES_URI", ""), table_name="docstore"
         )
-        
+
         return StorageContext.from_defaults(
             vector_store=self._vector_store,
             docstore=self._docstore,
         )
-        
 
     def _load_or_create_index(self) -> Any:
         """
@@ -316,4 +308,4 @@ class RAGEngine:
             return VectorStoreIndex(
                 nodes=[],
                 storage_context=self._storage_context,
-        )
+            )

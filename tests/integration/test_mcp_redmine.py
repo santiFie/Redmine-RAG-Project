@@ -22,18 +22,18 @@ def test_mcp_server_initialization():
 
 def test_mcp_server_tools_registered():
     """Valida que todas las herramientas requeridas estén registradas en el MCP."""
-    
+
     # FastMCP internamente registra las herramientas.
     # Verificamos los nombres de las funciones decoradas.
     registered_tools = [tool.name for tool in mcp._tools.values()] if hasattr(mcp, "_tools") else []
-    
-    # Si FastMCP expone las tools de otra forma (por ejemplo .list_tools()), 
+
+    # Si FastMCP expone las tools de otra forma (por ejemplo .list_tools()),
     # podemos usar getattr para evitar fallos si cambia la API interna.
     if not registered_tools and hasattr(mcp, "list_tools"):
         tools = mcp.list_tools()
         # Adaptarse a si devuelve una lista de diccionarios, objetos, etc.
         registered_tools = [t.name if hasattr(t, "name") else t["name"] for t in tools]
-        
+
     # Herramientas mínimas que esperamos que el servidor exponga:
     expected_tools = [
         "get_issue",
@@ -47,9 +47,9 @@ def test_mcp_server_tools_registered():
         "get_project",
         "create_project",
         "update_project",
-        "delete_project"
+        "delete_project",
     ]
-    
+
     if registered_tools:
         for tool in expected_tools:
             assert tool in registered_tools, f"Falta la herramienta MCP: {tool}"

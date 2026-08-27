@@ -94,15 +94,18 @@ mcp = FastMCP(
     instructions="Prefer search_items before calling get_item directly — IDs aren't guessable.",
 )
 
+
 @mcp.tool(annotations={"readOnlyHint": True})
 def search_items(query: str, limit: int = 10) -> list[dict]:
     """Search items by keyword. Returns up to `limit` matches ranked by relevance."""
     return upstream_api.search(query, limit)
 
+
 @mcp.tool(annotations={"readOnlyHint": True})
 def get_item(id: str) -> dict:
     """Fetch a single item by its ID."""
     return upstream_api.get(id)
+
 
 if __name__ == "__main__":
     mcp.run(transport="http", host="0.0.0.0", port=3000)

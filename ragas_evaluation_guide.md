@@ -45,10 +45,7 @@ Es una lista de diccionarios que forman el "Ground Truth" o verdad absoluta. Cad
 {
     "user_input": "¿Cuál es la causa raíz del error 500 en el endpoint /api/projects?",
     "reference": "La causa raíz... es un NullPointerException...",
-    "reference_contexts": [
-        "Issue #101: Error 500...",
-        "Comentario en Issue #101..."
-    ]
+    "reference_contexts": ["Issue #101: Error 500...", "Comentario en Issue #101..."],
 }
 ```
 

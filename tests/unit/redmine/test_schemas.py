@@ -25,11 +25,7 @@ def test_redmine_user_schema_invalido():
 
 
 def test_redmine_project_schema():
-    data = {
-        "id": 42,
-        "identifier": "proyecto-test",
-        "name": "Proyecto Test"
-    }
+    data = {"id": 42, "identifier": "proyecto-test", "name": "Proyecto Test"}
     project = RedmineProject(**data)
     assert project.id == 42
     assert project.identifier == "proyecto-test"
@@ -49,9 +45,9 @@ def test_redmine_issue_schema_completo():
                 "id": 200,
                 "user": {"id": 2, "name": "Dev User"},
                 "notes": "Revisando el error",
-                "created_on": "2023-10-01T12:00:00Z"
+                "created_on": "2023-10-01T12:00:00Z",
             }
-        ]
+        ],
     }
     issue = RedmineIssue(**data)
     assert issue.id == 100
@@ -63,7 +59,7 @@ def test_redmine_issue_schema_completo():
     assert issue.done_ratio == 50
     assert len(issue.journals) == 1
     assert issue.journals[0].notes == "Revisando el error"
-    
+
     # Probar to_document_text() sin que rompa
     doc_text = issue.to_document_text()
     assert "ID: 100" in doc_text

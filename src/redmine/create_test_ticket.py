@@ -10,6 +10,7 @@ Requisitos previos:
 - Activar el entorno virtual: source .venv/bin/activate
 - Instalar dependencias (httpx, python-dotenv) en el venv.
 """
+
 import os
 import subprocess
 import sys
@@ -18,6 +19,7 @@ from pathlib import Path
 # Asegurarse de que estamos en el directorio del proyecto
 # PROJECT_ROOT = Path(__file__).resolve().parents[2]
 # os.chdir(PROJECT_ROOT)
+
 
 def start_redmine():
     """Levanta Redmine usando docker‑compose (en modo detach)."""
@@ -30,6 +32,7 @@ def start_redmine():
     print("Iniciando Redmine con docker‑compose...")
     subprocess.run(["docker", "compose", "up", "-d", "redmine"], check=True)
     print("Redmine iniciado. Espera unos segundos a que esté disponible.")
+
 
 def create_test_issue():
     """Crea un ticket de prueba usando RedmineClient."""
@@ -51,6 +54,7 @@ def create_test_issue():
             print(created)
     except Exception as e:
         print(f"Error al crear el ticket: {e}")
+
 
 if __name__ == "__main__":
     # Paso 1: levantar Redmine (solo la primera vez, puedes comentar si ya está corriendo)

@@ -144,8 +144,7 @@ server.registerTool("delete_file", {
 
 ```python
 @mcp.tool(annotations={"destructiveHint": True, "idempotentHint": False})
-def delete_file(path: str) -> str:
-    ...
+def delete_file(path: str) -> str: ...
 ```
 
 Pair with the read/write split advice in `build-mcpb/references/local-security.md` — mark every read tool `readOnlyHint: true`.
