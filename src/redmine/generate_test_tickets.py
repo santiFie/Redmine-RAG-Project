@@ -180,7 +180,7 @@ pg_restore --clean --if-exists -h localhost -U postgres -d techvanguard_prod /tm
         },
     ]
 
-    # Generación de 50 tickets aleatorios adicionales
+    # Parámetros estándar para tickets aleatorios
     trackers = [1, 2, 3]  # 1: Error, 2: Tarea, 3: Soporte
     statuses = [
         1,
@@ -191,8 +191,6 @@ pg_restore --clean --if-exists -h localhost -U postgres -d techvanguard_prod /tm
         6,
     ]  # 1: Nueva, 2: En curso, 3: Resuelta, 4: Comentarios, 5: Cerrada, 6: Rechazada
     priorities = [1, 2, 3, 4, 5]  # 1: Baja, 2: Normal, 3: Alta, 4: Urgente, 5: Inmediata
-    users = [1, 6, 7, 8]  # 1: admin, 6: admin2, 7: Mariano, 8: facundo
-    projects = ["infraestructura-de-servicios", "proyecto-prueba"]
 
     realistic_templates = [
         {
@@ -281,42 +279,52 @@ pg_restore --clean --if-exists -h localhost -U postgres -d techvanguard_prod /tm
         "Admin Panel",
     ]
 
-    print("Generando 50 tickets aleatorios adicionales con ejemplos reales...")
-    for _ in range(50):
-        template = random.choice(realistic_templates)
-        comp = random.choice(components_list)
-        cve_id = f"2023-{random.randint(1000, 99999)}"
-        subnet = random.randint(10, 200)
-        rnd_id = random.randint(100, 9999)
-
-        subj = template["subject"].replace("{component}", comp).replace("{cve_id}", cve_id)
-        desc = (
-            template["description"]
-            .replace("{component}", comp)
-            .replace("{cve_id}", cve_id)
-            .replace("{subnet}", str(subnet))
-            .replace("{random_id}", str(rnd_id))
-        )
-
-        max_notes = len(template["notes"])
-        num_notes = random.randint(0, max_notes)
-        issue_notes = template["notes"][:num_notes] if num_notes > 0 else []
-
-        issues_data.append(
-            {
-                "subject": subj,
-                "description": desc,
-                "notes": issue_notes,
-                "tracker_id": random.choice(trackers),
-                "status_id": random.choice(statuses),
-                "priority_id": random.choice(priorities),
-                "assigned_to_id": random.choice(users),
-                "project_id": random.choice(projects),
-            }
-        )
-
     try:
         with RedmineClient() as client:
+            # Detección dinámica de proyectos y usuarios disponibles en Redmine
+            detected_projects = [p["identifier"] for p in client.list_projects() if p.get("identifier")]
+            projects = detected_projects if detected_projects else [project_id]
+
+            detected_users = [u["id"] for u in client.list_users() if u.get("id")]
+            users = detected_users if detected_users else [1]
+
+            print(f"Proyectos detectados ({len(projects)}): {projects}")
+            print(f"Usuarios detectados ({len(users)}): {users}")
+
+            print("Generando 50 tickets aleatorios adicionales con ejemplos reales...")
+            for _ in range(50):
+                template = random.choice(realistic_templates)
+                comp = random.choice(components_list)
+                cve_id = f"2023-{random.randint(1000, 99999)}"
+                subnet = random.randint(10, 200)
+                rnd_id = random.randint(100, 9999)
+
+                subj = template["subject"].replace("{component}", comp).replace("{cve_id}", cve_id)
+                desc = (
+                    template["description"]
+                    .replace("{component}", comp)
+                    .replace("{cve_id}", cve_id)
+                    .replace("{subnet}", str(subnet))
+                    .replace("{random_id}", str(rnd_id))
+                )
+
+                max_notes = len(template["notes"])
+                num_notes = random.randint(0, max_notes)
+                issue_notes = template["notes"][:num_notes] if num_notes > 0 else []
+
+                issues_data.append(
+                    {
+                        "subject": subj,
+                        "description": desc,
+                        "notes": issue_notes,
+                        "tracker_id": random.choice(trackers),
+                        "status_id": random.choice(statuses),
+                        "priority_id": random.choice(priorities),
+                        "assigned_to_id": random.choice(users),
+                        "project_id": random.choice(projects),
+                    }
+                )
+
             for item in issues_data:
                 t_project_id = item.get("project_id", project_id)
                 print(f"Creando ticket: {item['subject']} en proyecto {t_project_id}")

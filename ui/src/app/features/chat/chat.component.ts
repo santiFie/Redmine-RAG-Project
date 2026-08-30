@@ -20,19 +20,19 @@ import { ToolIndicatorComponent, ToolStep } from './components/tool-indicator/to
 })
 export class ChatComponent implements OnInit, OnDestroy {
   @ViewChild('messagesArea') private messagesArea!: ElementRef<HTMLDivElement>;
-  @ViewChild('inputEl')      private inputEl!: ElementRef<HTMLTextAreaElement>;
+  @ViewChild('inputEl') private inputEl!: ElementRef<HTMLTextAreaElement>;
 
-  protected readonly auth    = inject(AuthService);
-  private readonly chat      = inject(ChatService);
-  private readonly router    = inject(Router);
+  protected readonly auth = inject(AuthService);
+  private readonly chat = inject(ChatService);
+  private readonly router = inject(Router);
   private streamSub?: Subscription;
 
-  protected readonly messages              = signal<ChatMessage[]>([]);
-  protected readonly threadId              = signal<string | null>(null);
-  protected readonly isStreaming           = signal(false);
-  protected readonly currentNode           = signal<string | null>(null);
+  protected readonly messages = signal<ChatMessage[]>([]);
+  protected readonly threadId = signal<string | null>(null);
+  protected readonly isStreaming = signal(false);
+  protected readonly currentNode = signal<string | null>(null);
   protected readonly currentStreamingMsgId = signal<string | null>(null);
-  protected readonly errorMsg              = signal<string | null>(null);
+  protected readonly errorMsg = signal<string | null>(null);
   protected inputText = '';
 
   /** Mapa msgId → tool steps para ese mensaje */
@@ -186,7 +186,7 @@ export class ChatComponent implements OnInit, OnDestroy {
 
       case 'done':
         if (!this.threadId()) this.threadId.set(event.thread_id);
-        this.finalizeStreaming(msgId);
+        this.finalizeStreaming(msgId, event.run_id);
         break;
 
       case 'error':
@@ -196,9 +196,9 @@ export class ChatComponent implements OnInit, OnDestroy {
     }
   }
 
-  private finalizeStreaming(msgId: string): void {
+  private finalizeStreaming(msgId: string, runId?: string): void {
     this.messages.update(msgs =>
-      msgs.map(m => m.id === msgId ? { ...m, isStreaming: false, currentNode: undefined } : m)
+      msgs.map(m => m.id === msgId ? { ...m, isStreaming: false, currentNode: undefined, runId: runId ?? m.runId } : m)
     );
     this.isStreaming.set(false);
     this.currentStreamingMsgId.set(null);
@@ -210,6 +210,14 @@ export class ChatComponent implements OnInit, OnDestroy {
     requestAnimationFrame(() => {
       const el = this.messagesArea?.nativeElement;
       if (el) el.scrollTop = el.scrollHeight;
+    });
+  }
+
+  protected handleFeedback(event: { runId: string, score: number, comment?: string, value?: string }): void {
+    this.chat.submitFeedback(event.runId, event.score, event.comment, event.value).subscribe({
+      error: (err) => {
+        this.errorMsg.set(`Error al enviar feedback: ${err.message}`);
+      }
     });
   }
 }

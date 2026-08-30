@@ -556,6 +556,32 @@ class RedmineClient:
         return self._delete(f"/projects/{project_id}.json")
 
     # ------------------------------------------------------------------
+    # Users — https://www.redmine.org/projects/redmine/wiki/Rest_Users
+    # ------------------------------------------------------------------
+
+    def list_users(
+        self,
+        status: int = 1,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> list[dict[str, Any]]:
+        """
+        Lista usuarios en Redmine (requiere permisos de administrador).
+
+        GET /users.json
+
+        Args:
+            status: Estado del usuario (1: activo, 2: registrado, 3: bloqueado).
+            limit: Número máximo de usuarios a devolver.
+            offset: Desplazamiento para paginación.
+
+        Returns:
+            Lista de diccionarios con los usuarios.
+        """
+        data = self._get("/users.json", params={"status": status, "limit": limit, "offset": offset})
+        return data.get("users", [])
+
+    # ------------------------------------------------------------------
     # Utilidades internas
     # ------------------------------------------------------------------
 

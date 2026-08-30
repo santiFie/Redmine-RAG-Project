@@ -3,7 +3,8 @@
 // Burbuja de mensaje del chat. Renderiza Markdown con `marked` y muestra un
 // indicador minimalista del nodo actual durante el streaming.
 
-import { Component, Input, SecurityContext } from '@angular/core';
+import { Component, Input, Output, EventEmitter, SecurityContext } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { marked } from 'marked';
 import { NODE_LABELS } from '../../../../core/chat/chat.service';
@@ -19,19 +20,54 @@ export interface ChatMessage {
   isStreaming?: boolean;
   /** Nodo del grafo actualmente en ejecución (solo durante streaming) */
   currentNode?: string;
+  runId?: string;
   timestamp: Date;
 }
 
 @Component({
   selector: 'app-message-bubble',
   standalone: true,
+  imports: [FormsModule],
   templateUrl: './message-bubble.component.html',
   styleUrl: './message-bubble.component.scss',
 })
 export class MessageBubbleComponent {
   @Input({ required: true }) message!: ChatMessage;
+  @Output() feedback = new EventEmitter<{ runId: string, score: number, comment?: string, value?: string }>();
 
-  constructor(private sanitizer: DomSanitizer) {}
+  showFeedbackForm = false;
+  feedbackCategory = '';
+  feedbackComment = '';
+  feedbackSubmitted = false;
+
+  constructor(private sanitizer: DomSanitizer) { }
+
+  onThumbsUp() {
+    if (!this.message.runId || this.feedbackSubmitted) return;
+    this.feedback.emit({ runId: this.message.runId, score: 1 });
+    this.feedbackSubmitted = true;
+  }
+
+  onThumbsDown() {
+    if (!this.message.runId || this.feedbackSubmitted) return;
+    this.showFeedbackForm = true;
+  }
+
+  submitNegativeFeedback() {
+    if (!this.message.runId) return;
+    this.feedback.emit({
+      runId: this.message.runId,
+      score: 0,
+      comment: this.feedbackComment,
+      value: this.feedbackCategory || undefined
+    });
+    this.showFeedbackForm = false;
+    this.feedbackSubmitted = true;
+  }
+
+  cancelFeedback() {
+    this.showFeedbackForm = false;
+  }
 
   /** Label legible del nodo actual, o string vacío si no hay nodo */
   get nodeLabel(): string {

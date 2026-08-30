@@ -7,7 +7,7 @@ PYTHON = $(VENV)/bin/python
 LANGGRAPH = $(VENV)/bin/langgraph
 PYTEST = $(VENV)/bin/pytest
 
-.PHONY: help up down docker-up docker-down dev index index-incremental test test-ragas serve-ragas mcp-build mcp-run mcp-test clean
+.PHONY: help up build down docker-up docker-down dev index index-incremental test test-ragas serve-ragas mcp-build mcp-run mcp-test clean
 
 help: ## Muestra este mensaje de ayuda
 	@echo "Comandos disponibles:"
@@ -26,6 +26,9 @@ up: docker-up ## Levanta la infraestructura de Docker e inicia LangGraph Dev
 	@echo "Servicios Docker iniciados correctamente."
 	@echo "Iniciando servidor LangGraph Dev..."
 	# $(LANGGRAPH) dev --host 127.0.0.1 --port 8123 --allow-blocking
+
+build: 
+	@docker compose -f docker-compose.yml -f docker-compose.override.yml up --build
 
 down: docker-down ## Detiene los contenedores de Docker
 

@@ -34,6 +34,35 @@
       <div class="bubble-meta">
         {{ formatTime(message.timestamp) }}
       </div>
+      
+      @if (message.role === 'assistant' && message.runId) {
+        <div class="feedback-actions">
+          @if (!feedbackSubmitted && !showFeedbackForm) {
+            <button class="feedback-btn" (click)="onThumbsUp()" title="Buena respuesta">👍</button>
+            <button class="feedback-btn" (click)="onThumbsDown()" title="Mala respuesta">👎</button>
+          }
+          @if (feedbackSubmitted) {
+            <span class="feedback-thanks">Gracias por tu feedback</span>
+          }
+        </div>
+        
+        @if (showFeedbackForm) {
+          <div class="feedback-form">
+            <select [(ngModel)]="feedbackCategory" class="feedback-select">
+              <option value="">Seleccionar motivo (opcional)</option>
+              <option value="Faltó información">Faltó información</option>
+              <option value="Información incorrecta">Información incorrecta</option>
+              <option value="Alucinación">Alucinación</option>
+              <option value="Otro">Otro</option>
+            </select>
+            <textarea [(ngModel)]="feedbackComment" placeholder="Comentario opcional..." class="feedback-textarea"></textarea>
+            <div class="feedback-form-actions">
+              <button (click)="cancelFeedback()" class="btn-cancel">Cancelar</button>
+              <button (click)="submitNegativeFeedback()" class="btn-submit">Enviar Feedback</button>
+            </div>
+          </div>
+        }
+      }
     }
   </div>
 </div>

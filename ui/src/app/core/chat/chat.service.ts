@@ -49,6 +49,7 @@ export interface ErrorEvent {
 export interface DoneEvent {
   type: 'done';
   thread_id: string;
+  run_id?: string;
 }
 
 export type ChatEvent =
@@ -168,6 +169,33 @@ export class ChatService {
     });
   }
 
+  /**
+   * Envía feedback sobre una respuesta específica del agente a LangSmith.
+   */
+  submitFeedback(runId: string, score: number, comment?: string, value?: string): Observable<void> {
+    return new Observable((subscriber) => {
+      const token = this.auth.getToken();
+
+      fetch(`${environment.apiUrl}/chat/feedback`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ run_id: runId, user_score: score, text_comment: comment, value: value }),
+      })
+        .then(async (res) => {
+          if (!res.ok) {
+            const err = await res.text();
+            throw new Error(`Error enviando feedback: ${err}`);
+          }
+          subscriber.next();
+          subscriber.complete();
+        })
+        .catch((err) => subscriber.error(err));
+    });
+  }
+
   // ── Parseo SSE ────────────────────────────────────────────────────────────
 
   /** Parsea un bloque SSE (event: xxx\ndata: {...}) a un ChatEvent tipado. */
@@ -200,7 +228,7 @@ export class ChatService {
         case 'error':
           return { type: 'error', message: data.message };
         case 'done':
-          return { type: 'done', thread_id: data.thread_id };
+          return { type: 'done', thread_id: data.thread_id, run_id: data.run_id };
         default:
           return null;
       }
