@@ -848,7 +848,7 @@ RAGAS_TESTSET_HYBRID: list[dict] = [
             ),
         ],
         "bm25_hint": "m=16, m=32, ef_construct=200, ef=128, ef=256, HNSW, recall > 0.90",
-            },
+    },
 ]
 
 

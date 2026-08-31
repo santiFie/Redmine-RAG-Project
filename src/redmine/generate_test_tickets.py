@@ -282,7 +282,9 @@ pg_restore --clean --if-exists -h localhost -U postgres -d techvanguard_prod /tm
     try:
         with RedmineClient() as client:
             # Detección dinámica de proyectos y usuarios disponibles en Redmine
-            detected_projects = [p["identifier"] for p in client.list_projects() if p.get("identifier")]
+            detected_projects = [
+                p["identifier"] for p in client.list_projects() if p.get("identifier")
+            ]
             projects = detected_projects if detected_projects else [project_id]
 
             detected_users = [u["id"] for u in client.list_users() if u.get("id")]

@@ -59,7 +59,9 @@ class State(TypedDict):
 
 
 import os
+
 _PERSONAL_SENTINEL = {"personal", ""}
+
 
 def _get_org() -> str | None:
     raw = os.getenv("LANGSMITH_HUB_ORG", "").strip()
@@ -67,7 +69,9 @@ def _get_org() -> str | None:
         return None
     return raw
 
+
 _ls_client = AsyncClient()
+
 
 def _get_prompt_name(name: str) -> str:
     org = _get_org()

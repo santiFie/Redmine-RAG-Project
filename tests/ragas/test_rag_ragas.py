@@ -575,9 +575,7 @@ def suites_activas(request: pytest.FixtureRequest) -> frozenset[str]:
         )
     activas = tokens & _SUITES_VALIDAS
     if not activas:
-        logger.warning(
-            "Ninguna suite válida reconocida en --suites='%s'. Activando todas.", raw
-        )
+        logger.warning("Ninguna suite válida reconocida en --suites='%s'. Activando todas.", raw)
         return _SUITES_VALIDAS
     logger.info("Suites Ragas activas: %s", activas)
     return frozenset(activas)
