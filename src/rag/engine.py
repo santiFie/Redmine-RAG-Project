@@ -32,7 +32,6 @@ from llama_index.core.schema import (
     TextNode,
 )
 from llama_index.core.vector_stores.types import VectorStoreQueryMode
-from llama_index.embeddings.huggingface_api import HuggingFaceInferenceAPIEmbedding
 from llama_index.storage.docstore.postgres import PostgresDocumentStore
 from llama_index.vector_stores.qdrant import QdrantVectorStore
 from qdrant_client import AsyncQdrantClient, QdrantClient
@@ -41,6 +40,7 @@ from src.rag.schemas import (
     REDMINE_AUTO_RETRIEVER_PROMPT_TMPL,
     REDMINE_VECTOR_STORE_INFO,
 )
+from src.rag.utils.get_embedding import get_embedding_model
 from src.rag.utils.get_llm import _LLM_REGISTRY
 from src.rag.utils.parser import build_hierarchical_nodes
 from src.redmine.parser import parse_redmine_issue_to_nodes
@@ -97,9 +97,11 @@ class RAGEngine:
         qdrant_url: str | None = None,
         qdrant_api_key: str | None = None,
         llm_provider: str | None = None,
+        embedding_provider: str | None = None,
+        embed_model: str | None = None,
     ) -> None:
 
-        # Inicilizar modelos
+        # Inicializar modelos
         self.llm_provider = llm_provider or os.getenv("LLM_PROVIDER", "groq").lower()
         factory = _LLM_REGISTRY.get(self.llm_provider)
 
@@ -107,9 +109,13 @@ class RAGEngine:
             raise ValueError(f"LLM Provider no soportado: {self.llm_provider}")
         self._llm = factory()
 
-        self._embed_model = HuggingFaceInferenceAPIEmbedding(
-            model_name=os.getenv("EMBED_MODEL", "BAAI/bge-m3"),
-            token=os.getenv("HUGGINGFACE_API_KEY", ""),
+        self.embedding_provider = (
+            embedding_provider or os.getenv("EMBEDDING_PROVIDER", "local")
+        ).lower()
+        self.embed_model_name = embed_model or os.getenv("EMBED_MODEL", "BAAI/bge-m3")
+        self._embed_model = get_embedding_model(
+            provider=self.embedding_provider,
+            model_name=self.embed_model_name,
         )
 
         Settings.llm = self._llm
@@ -123,9 +129,10 @@ class RAGEngine:
         self.qdrant_api_key = raw_key.strip() if raw_key and raw_key.strip() else None
 
         logger.info(
-            "RAGEngine init: provider=%s embed=%s coleccion=%s qdrant=%s",
+            "RAGEngine init: llm_provider=%s embed_provider=%s embed_model=%s coleccion=%s qdrant=%s",
             self.llm_provider,
-            os.getenv("EMBED_MODEL", "BAAI/bge-m3"),
+            self.embedding_provider,
+            self.embed_model_name,
             self.collection_name,
             self.qdrant_url,
         )
@@ -144,14 +151,10 @@ class RAGEngine:
         self._storage_context = self._init_storage_context()
         self._index = self._load_or_create_index()
 
-        # Warmup del provider mapping de HuggingFace.
-        # `_fetch_inference_provider_mapping` está decorada con @lru_cache: la primera
-        # llamada hace un HTTP síncrono a la Hub API para resolver el proveedor del modelo.
-        # Disparándola aquí (en tiempo de importación, antes del event loop de LangGraph)
-        # se pre-popula el caché. Las llamadas async posteriores desde el event loop
-        # encontrarán el caché caliente y no harán I/O bloqueante.
-        with contextlib.suppress(Exception):
-            self._embed_model.get_query_embedding("warmup")
+        # Warmup del provider mapping de HuggingFace (solo para HF Inference API).
+        if self.embedding_provider in ("hf_api", "huggingface_api", "huggingface-api"):
+            with contextlib.suppress(Exception):
+                self._embed_model.get_query_embedding("warmup")
 
     def parse_redmine_issue_to_nodes(self, issue_data: dict[str, Any]) -> list[TextNode]:
         """
