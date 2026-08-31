@@ -7,11 +7,20 @@ PYTHON = $(VENV)/bin/python
 LANGGRAPH = $(VENV)/bin/langgraph
 PYTEST = $(VENV)/bin/pytest
 
-.PHONY: help up build down docker-up docker-down dev index index-incremental test test-ragas serve-ragas mcp-build mcp-run mcp-test clean
+.PHONY: help install up build down docker-up docker-down dev index index-incremental test test-ragas serve-ragas mcp-build mcp-run mcp-test clean
 
 help: ## Muestra este mensaje de ayuda
 	@echo "Comandos disponibles:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2}'
+
+install: ## Instala dependencias y configura shims de compatibilidad (Ragas/VertexAI)
+	$(VENV)/bin/pip install -r requirements.txt
+	@$(PYTHON) -c "import site, os; \
+	p = os.path.join(site.getsitepackages()[0], 'langchain_community', 'chat_models'); \
+	os.makedirs(p, exist_ok=True); \
+	f = os.path.join(p, 'vertexai.py'); \
+	open(f, 'w').write('try:\n    from langchain_google_vertexai import ChatVertexAI\nexcept ImportError:\n    class ChatVertexAI: pass\n__all__ = [\"ChatVertexAI\"]\n'); \
+	print('Shim VertexAI configurado en:', f)"
 
 docker-up: ## Levanta la infraestructura de Docker (PostgreSQL, Redmine, Qdrant)
 	docker compose up -d
@@ -42,7 +51,7 @@ test: ## Ejecuta la suite de pruebas con Pytest
 	$(PYTEST)
 
 test-ragas: ## Ejecuta la evaluación RAG con Ragas y levanta el servidor de resultados
-	$(PYTEST) -m ragas
+	$(PYTEST) -m ragas --log-cli-level=INFO
 	@mkdir -p ui/public/results && cp -r tests/ragas/results/* ui/public/results/ 2>/dev/null || true
 	@echo "Visualización disponible en http://127.0.0.1:8765/dashboard.html (o en la UI en /tests)"
 	cd tests/ragas/results && python3 -m http.server 8765 --bind 127.0.0.1

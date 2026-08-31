@@ -25,7 +25,7 @@ El estado central mantiene el contexto de la conversación y los resultados inte
 
 ## Repo boundaries
 
-- This directory is a subfolder of the git repo rooted at `/home/santi/Documentos/LangGraph`. Run `git` commands from that parent; this whole tree is currently untracked.
+- This directory is a subfolder of the git repo rooted at `/home/santi/Documentos/LlamaIndex-RAG-Project`. Run `git` commands from that parent; this whole tree is currently untracked.
 - Project-local venv: `.venv/` (absolute path is already the project-local one — do not use a parent `.venv`). Use `.venv/bin/python`, `.venv/bin/pytest`, etc.
 - No CI, no README. `pyproject.toml` and `requirements.txt` drift apart; `requirements.txt` is the fuller install list. Add new deps to both when they matter.
 
@@ -55,8 +55,7 @@ El estado central mantiene el contexto de la conversación y los resultados inte
 
 ## RAG / infra
 
-- `docker compose up -d` (`make up`/`docker-up`) is required: Postgres 16 (also used by `PostgresDocumentStore` via `POSTGRES_URI`), Qdrant `redmine_docs` collection at :6333, Redmine at :3000.
-- Embeddings are always `HuggingFaceInferenceAPIEmbedding` (`HUGGINGFACE_API_KEY`, `EMBED_MODEL`, default `BAAI/bge-m3`) — independent of the `EMBEDDING_PROVIDER` env var.
+- Embeddings: configurable via `EMBEDDING_PROVIDER` (default `local` with `HuggingFaceEmbedding`, or `hf_api` with `HUGGINGFACE_API_KEY`, `ollama`, `openai`) and `EMBED_MODEL` (default `BAAI/bge-m3`). Factored in `src/rag/utils/get_embedding.py`.
 - Ingestion: `src/jobs/indexer_job.py` (incremental Redmine→Qdrant sync), helpers in `src/redmine/` (`generate_test_tickets.py`, `create_test_ticket.py`).
 
 ## MCP server

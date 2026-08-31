@@ -16,10 +16,32 @@ Umbrales (CI/CD gates):
   - context_recall    >= 0.4
 
 Secciones de tests:
-  A — AutoMergingRetrieval  : VectorIndexRetriever (DENSE) + AutoMergingRetriever
-  B — Hybrid                : VectorIndexAutoRetriever (HYBRID/BM25) + AutoMergingRetriever
-  C — Metadata Filtering    : mismo retriever que B; las preguntas contienen project/
-                              status/author para que VectorIndexAutoRetriever infiera filtros.
+  Base              : testset original de retrocompatibilidad
+  A — AutoMerging   : VectorIndexRetriever (DENSE) + AutoMergingRetriever
+  B — Hybrid        : VectorIndexAutoRetriever (HYBRID/BM25) + AutoMergingRetriever
+  C — Metadata      : mismo retriever que B; preguntas con project/status/author
+                      para que VectorIndexAutoRetriever infiera filtros.
+
+Flag --suites (ejecución selectiva):
+  Permite elegir qué suites ejecutar sin correr toda la evaluación.
+  Valores separados por coma: base, automerging, hybrid, metadata_filter
+
+  Ejemplos:
+    .venv/bin/pytest tests/ragas/ -m ragas --suites hybrid
+    .venv/bin/pytest tests/ragas/ -m ragas --suites hybrid,automerging
+    RAGAS_SUITES=hybrid make test-ragas      # fallback por variable de entorno
+
+  Sin el flag (o con --suites all) se ejecutan todas las suites.
+  El skip se aplica en los fixtures de resultado para evitar inicializar
+  el RAGEngine y los LLMs innecesariamente.
+
+top_k en retriever:
+  - query_engine (base/automerging): top_k=5
+  - query_engine_hybrid / query_engine_metadata_filter: top_k=3
+    Justificación: con 8 issues en el corpus (~24-40 nodos), top_k=5 recupera
+    hasta el 20% del índice, generando ruido que penaliza ContextPrecision.
+    La regla top_k ≈ 2–3 × reference_contexts_esperados lleva a top_k=3
+    para casos Hybrid y Metadata que tienen 2-3 contexts de referencia.
 
 LLM — FallbackLLM (juez de Ragas y sintetizador del query engine):
   Cascada con timeout 60 s por intento y sin backoff:
@@ -78,11 +100,11 @@ from llama_index.core.llms.callbacks import llm_chat_callback, llm_completion_ca
 from llama_index.core.query_engine import RetrieverQueryEngine
 from llama_index.core.retrievers import AutoMergingRetriever, VectorIndexRetriever
 from llama_index.core.vector_stores.types import VectorStoreQueryMode
-from llama_index.embeddings.huggingface_api import HuggingFaceInferenceAPIEmbedding
 from ragas import EvaluationDataset, SingleTurnSample
 from ragas.embeddings import LlamaIndexEmbeddingsWrapper
 from ragas.integrations.llama_index import evaluate
 from ragas.llms import LlamaIndexLLMWrapper
+from src.rag.utils.get_embedding import get_embedding_model
 from ragas.metrics import (
     AnswerRelevancy as _AnswerRelevancy,
 )
@@ -109,6 +131,15 @@ from tests.ragas.fixtures import (
 nest_asyncio.apply()
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Suites válidas — definición canónica en conftest.py; se importa aquí
+# solo para que la fixture suites_activas pueda referenciarla sin importar
+# desde conftest (pytest no expone conftest como módulo importable).
+# ---------------------------------------------------------------------------
+
+_SUITES_VALIDAS = frozenset({"base", "automerging", "hybrid", "metadata_filter"})
+
 
 # ---------------------------------------------------------------------------
 # Umbrales de calidad (CI/CD gates)
@@ -518,6 +549,40 @@ def rag_engine():
 # ---------------------------------------------------------------------------
 
 
+@pytest.fixture(scope="session")
+def suites_activas(request: pytest.FixtureRequest) -> frozenset[str]:
+    """
+    Devuelve el conjunto de suites habilitadas para esta ejecución.
+
+    Orden de prioridad:
+      1. Flag ``--suites`` de pytest (ej. ``--suites hybrid,automerging``)
+      2. Variable de entorno ``RAGAS_SUITES`` (ej. ``RAGAS_SUITES=hybrid``)
+      3. Sin valor → todas las suites activas
+
+    Valores válidos: ``base``, ``automerging``, ``hybrid``, ``metadata_filter``.
+    El valor especial ``all`` activa todas las suites.
+    """
+    raw = request.config.getoption("--suites") or os.getenv("RAGAS_SUITES") or ""
+    if not raw or raw.strip().lower() == "all":
+        return _SUITES_VALIDAS
+    tokens = {t.strip().lower() for t in raw.split(",") if t.strip()}
+    desconocidas = tokens - _SUITES_VALIDAS
+    if desconocidas:
+        logger.warning(
+            "Suites desconocidas ignoradas: %s. Válidas: %s",
+            desconocidas,
+            _SUITES_VALIDAS,
+        )
+    activas = tokens & _SUITES_VALIDAS
+    if not activas:
+        logger.warning(
+            "Ninguna suite válida reconocida en --suites='%s'. Activando todas.", raw
+        )
+        return _SUITES_VALIDAS
+    logger.info("Suites Ragas activas: %s", activas)
+    return frozenset(activas)
+
+
 @pytest.fixture(scope="module")
 def fallback_llm():
     """
@@ -540,7 +605,7 @@ def fallback_llm():
 
 @pytest.fixture(scope="module")
 def query_engine(fallback_llm: FallbackLLM, rag_engine: RAGEngine):
-    retriever = rag_engine._build_base_retriever(top_k=5)
+    retriever = rag_engine._build_base_retriever(top_k=3)
     merging_retriever = AutoMergingRetriever(
         vector_retriever=retriever,
         storage_context=rag_engine._storage_context,
@@ -568,7 +633,7 @@ def query_engine_automerging(fallback_llm: FallbackLLM, rag_engine: RAGEngine):
 
 @pytest.fixture(scope="module")
 def query_engine_hybrid(fallback_llm: FallbackLLM, rag_engine: RAGEngine):
-    base_retriever = rag_engine._build_base_retriever(top_k=5)
+    base_retriever = rag_engine._build_base_retriever(top_k=3)
     merging_retriever = AutoMergingRetriever(
         vector_retriever=base_retriever,
         storage_context=rag_engine._storage_context,
@@ -580,7 +645,7 @@ def query_engine_hybrid(fallback_llm: FallbackLLM, rag_engine: RAGEngine):
 
 @pytest.fixture(scope="module")
 def query_engine_metadata_filter(fallback_llm: FallbackLLM, rag_engine: RAGEngine):
-    base_retriever = rag_engine._build_base_retriever(top_k=5)
+    base_retriever = rag_engine._build_base_retriever(top_k=3)
     merging_retriever = AutoMergingRetriever(
         vector_retriever=base_retriever,
         storage_context=rag_engine._storage_context,
@@ -609,12 +674,9 @@ def evaluator_llm(fallback_llm: FallbackLLM):
 def evaluator_embeddings():
     """
     Modelo de embeddings envuelto en el wrapper de Ragas.
-    Usa HuggingFace Inference API (mismo que el RAGEngine).
+    Usa el mismo proveedor configurable que el RAGEngine (local por defecto).
     """
-    embed = HuggingFaceInferenceAPIEmbedding(
-        model_name=os.getenv("EMBED_MODEL", "BAAI/bge-m3"),
-        token=os.getenv("HUGGINGFACE_API_KEY", ""),
-    )
+    embed = get_embedding_model()
     return LlamaIndexEmbeddingsWrapper(embed)
 
 
@@ -716,6 +778,7 @@ def ragas_dataset_metadata_filter():
 
 @pytest.fixture(scope="module")
 def ragas_result(
+    suites_activas: frozenset[str],
     query_engine: Any,
     ragas_dataset: EvaluationDataset,
     evaluator_llm: LlamaIndexLLMWrapper,
@@ -724,7 +787,11 @@ def ragas_result(
     """
     Ejecuta la evaluación Ragas base UNA sola vez (retrocompatibilidad).
     Persiste scores en results/scores_<timestamp>.json.
+
+    Se omite si 'base' no está en las suites activas (flag --suites).
     """
+    if "base" not in suites_activas:
+        pytest.skip("Suite 'base' no seleccionada en --suites.")
     metricas = [
         _Faithfulness(llm=evaluator_llm),
         _AnswerRelevancy(llm=evaluator_llm, embeddings=evaluator_embeddings, strictness=1),
@@ -743,6 +810,7 @@ def ragas_result(
 
 @pytest.fixture(scope="module")
 def ragas_result_automerging(
+    suites_activas: frozenset[str],
     query_engine_automerging: Any,
     ragas_dataset_automerging: EvaluationDataset,
     evaluator_llm: LlamaIndexLLMWrapper,
@@ -751,7 +819,11 @@ def ragas_result_automerging(
     """
     Evaluación Ragas para la sección AutoMerging (DENSE + merge padre↔hijo).
     Persiste scores en results/scores_automerging_<timestamp>.json.
+
+    Se omite si 'automerging' no está en las suites activas (flag --suites).
     """
+    if "automerging" not in suites_activas:
+        pytest.skip("Suite 'automerging' no seleccionada en --suites.")
     metricas = [
         _Faithfulness(llm=evaluator_llm),
         _AnswerRelevancy(llm=evaluator_llm, embeddings=evaluator_embeddings, strictness=1),
@@ -770,6 +842,7 @@ def ragas_result_automerging(
 
 @pytest.fixture(scope="module")
 def ragas_result_hybrid(
+    suites_activas: frozenset[str],
     query_engine_hybrid: Any,
     ragas_dataset_hybrid: EvaluationDataset,
     evaluator_llm: LlamaIndexLLMWrapper,
@@ -778,7 +851,11 @@ def ragas_result_hybrid(
     """
     Evaluación Ragas para la sección Hybrid (BM25 + dense + AutoMerging).
     Persiste scores en results/scores_hybrid_<timestamp>.json.
+
+    Se omite si 'hybrid' no está en las suites activas (flag --suites).
     """
+    if "hybrid" not in suites_activas:
+        pytest.skip("Suite 'hybrid' no seleccionada en --suites.")
     metricas = [
         _Faithfulness(llm=evaluator_llm),
         _AnswerRelevancy(llm=evaluator_llm, embeddings=evaluator_embeddings, strictness=1),
@@ -797,6 +874,7 @@ def ragas_result_hybrid(
 
 @pytest.fixture(scope="module")
 def ragas_result_metadata_filter(
+    suites_activas: frozenset[str],
     query_engine_metadata_filter: Any,
     ragas_dataset_metadata_filter: EvaluationDataset,
     evaluator_llm: LlamaIndexLLMWrapper,
@@ -805,7 +883,11 @@ def ragas_result_metadata_filter(
     """
     Evaluación Ragas para la sección Metadata Filtering (filtros inferidos del texto).
     Persiste scores en results/scores_metadata_filter_<timestamp>.json.
+
+    Se omite si 'metadata_filter' no está en las suites activas (flag --suites).
     """
+    if "metadata_filter" not in suites_activas:
+        pytest.skip("Suite 'metadata_filter' no seleccionada en --suites.")
     metricas = [
         _Faithfulness(llm=evaluator_llm),
         _AnswerRelevancy(llm=evaluator_llm, embeddings=evaluator_embeddings, strictness=1),

@@ -21,6 +21,10 @@ langchain-groq==1.1.3                 # proveedor Groq (ChatGroq)
 langchain-nvidia-ai-endpoints==1.4.3  # proveedor NVIDIA (ChatNVIDIA)
 langchain-google-genai==4.3.4         # proveedor Google (Gemini)
 langchain-huggingface==1.2.2          # HuggingFaceEndpoint
+langchain-google-vertexai>=2.0.0      # requerido: shim de compatibilidad ragas 0.4 con langchain-community>=0.4
+                                      # (ragas importa ChatVertexAI desde langchain_community.chat_models.vertexai,
+                                      #  que fue removido en 0.4; el shim .venv/.../langchain_community/chat_models/vertexai.py
+                                      #  re-exporta desde este paquete)
 
 # --- LlamaIndex RAG ---
 llama-index>=0.11.0
@@ -31,7 +35,10 @@ llama-index-embeddings-openai>=0.3.0
 llama-index-embeddings-ollama>=0.3.0
 llama-index-vector-stores-qdrant>=0.3.0   # integración con Qdrant
 llama-index-readers-web>=0.2.0
-llama-index-embeddings-huggingface-api==0.5.0   # embeddings HF Inference (bge-m3)
+llama-index-embeddings-huggingface>=0.3.0       # embeddings locales HF (bge-m3 / sentence-transformers)
+llama-index-embeddings-huggingface-api==0.5.0   # embeddings HF Inference (bge-m3 API)
+sentence-transformers<4.0.0                    # motor local de embeddings
+transformers<5.0.0                              # compatibilidad con llama-index-llms-openai-like
 llama-index-llms-groq==0.5.0                    # proveedor Groq
 llama-index-llms-nvidia==0.5.0                  # proveedor NVIDIA
 llama-index-storage-docstore-postgres==0.5.0    # PostgresDocumentStore
@@ -70,3 +77,6 @@ pytest-asyncio>=0.23.0
 pytest-httpx>=0.30.0   # mock de peticiones httpx en tests
 mypy>=1.10.0
 ruff>=0.4.0            # linter + formatter
+ragas==0.4.3           # evaluación RAG — fijar versión; 0.4.x usa API distinta a 0.3.x
+                       # NOTA: requiere el shim .venv/.../langchain_community/chat_models/vertexai.py
+                       # (creado automáticamente al instalar langchain-google-vertexai)
