@@ -1,8 +1,8 @@
 {
-  "faithfulness": 0.9166666666666666,
-  "answer_relevancy": 0.8504990115575853,
-  "context_precision": NaN,
-  "context_recall": 1.0,
-  "timestamp": "20260824T114252Z",
+  "faithfulness": 0.9527310924369747,
+  "answer_relevancy": 0.7871431139490072,
+  "context_precision": 0.7142857142357143,
+  "context_recall": 0.8333333333333333,
+  "timestamp": "20260831T223245Z",
   "suite": "hybrid"
 }
