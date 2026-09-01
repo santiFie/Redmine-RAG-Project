@@ -100,7 +100,6 @@ class RAGEngine:
         embedding_provider: str | None = None,
         embed_model: str | None = None,
     ) -> None:
-
         # Inicializar modelos
         self.llm_provider = llm_provider or os.getenv("LLM_PROVIDER", "groq").lower()
         factory = _LLM_REGISTRY.get(self.llm_provider)
@@ -208,7 +207,7 @@ class RAGEngine:
             # Guardar e indexar únicamente los nodos hoja en Qdrant
             self._index.insert_nodes(leaf_nodes)
 
-    def query(self, question: str, top_k: int = 5) -> str:
+    def query(self, question: str, top_k: int = 5) -> dict[str, Any]:
         """Método síncrono (mantenido para compatibilidad y tests)."""
         retriever = self._build_base_retriever(top_k)
         # Sync Merging Retriever
@@ -225,9 +224,16 @@ class RAGEngine:
             len(nodes),
             [round(n.score or 0.0, 3) for n in nodes],
         )
-        return self._format_context(nodes)
+        issue_ids = list(
+            {
+                node.node.metadata.get("issue_id")
+                for node in nodes
+                if node.node.metadata.get("issue_id") is not None
+            }
+        )
+        return {"context": self._format_context(nodes), "issue_ids": issue_ids}
 
-    async def aquery(self, question: str, top_k: int = 5) -> str:
+    async def aquery(self, question: str, top_k: int = 5) -> dict[str, Any]:
         """
         Variante async de ``query``: usa ``AsyncAutoMergingRetriever`` para que
         la búsqueda vectorial en Qdrant no bloquee el event loop de LangGraph.
@@ -247,7 +253,16 @@ class RAGEngine:
             len(nodes),
             [round(n.score or 0.0, 3) for n in nodes],
         )
-        return self._format_context(nodes)
+        issue_ids = list(
+            {
+                node.node.metadata.get("issue_id")
+                for node in nodes
+                if node.node.metadata.get("issue_id") is not None
+            }
+        )
+
+        logger.info("Tickets recuperados: %s", issue_ids)
+        return {"context": self._format_context(nodes), "issue_ids": issue_ids}
 
     # ------------------------------------------------------------------
     # Helpers privados

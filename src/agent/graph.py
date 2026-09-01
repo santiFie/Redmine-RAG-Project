@@ -55,6 +55,7 @@ class State(TypedDict):
     ]
     redmine_result: str  # resultado serializado del redmine_agent
     rag_context: str  # contexto recuperado por LlamaIndex
+    retrieved_issue_ids: NotRequired[list[int]]
     error: str | None
 
 
@@ -137,7 +138,7 @@ async def analyze_intent(state: State) -> State:
     user_input: str = state.get("user_input") or (
         last_msg.content if hasattr(last_msg, "content") else str(last_msg)
     )
-    llm = get_llm("groq", "openai/gpt-oss-120b", 0.1)
+    llm = get_llm("groq", "openai/gpt-oss-20b", 0.1)
     structured_llm = llm.with_structured_output(IntentClassification)
 
     prompt = await _ls_client.pull_prompt(_get_prompt_name("analyze-intent"))
@@ -264,18 +265,18 @@ def get_rag_engine() -> RAGEngine:
     return _rag_engine
 
 
-def _rag_query_sync(question: str) -> str:
+def _rag_query_sync(question: str) -> dict[str, Any]:
     """Mantenido para compatibilidad con tests. No se usa en el grafo."""
     return get_rag_engine().query(question)
 
 
-async def rag_query(state: State):
+async def rag_query(state: State) -> dict[str, Any]:
     user_question = state["user_input"]
 
     # Búsqueda vectorial async nativa — no bloquea el event loop de LangGraph
-    context = await get_rag_engine().aquery(user_question)
+    result = await get_rag_engine().aquery(user_question)
 
-    return {"rag_context": context}
+    return {"rag_context": result["context"], "retrieved_issue_ids": result["issue_ids"]}
 
 
 # ==============================================================================
@@ -312,6 +313,16 @@ async def respond(state: State) -> State:
 
     prompt = await _ls_client.pull_prompt(_get_prompt_name("respond-rag"))
     messages = prompt.format_messages(rag_context=rag_context, user_input=user_question)
+
+    issue_ids = state.get("retrieved_issue_ids", [])
+    if issue_ids:
+        base_url = os.getenv("REDMINE_HOST_URL", "").rstrip("/")
+        links_instruction = "IMPORTANTE: Al final de tu respuesta, debes incluir EXACTAMENTE esta sección de referencias (sin modificar los links):\n\n### 🔗 Tickets de Referencia\n"
+        for iid in issue_ids:
+            links_instruction += f"- [Ticket #{iid}]({base_url}/issues/{iid})\n"
+
+        # Agregamos la instrucción antes de llamar al LLM
+        messages.append(SystemMessage(content=links_instruction))
 
     response = await llm.ainvoke(messages)
     answer = response.content
