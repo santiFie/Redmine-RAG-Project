@@ -70,36 +70,21 @@ Nota sobre underscore en métricas (_Faithfulness, etc.):
 
 from __future__ import annotations
 
-import asyncio
-import concurrent.futures
 import contextlib
 import json
 import logging
 import os
 import uuid
-from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import nest_asyncio
 import pytest
-from llama_index.core.bridge.pydantic import PrivateAttr
-from llama_index.core.llms import (
-    LLM,
-    ChatMessage,
-    ChatResponse,
-    ChatResponseAsyncGen,
-    ChatResponseGen,
-    CompletionResponse,
-    CompletionResponseAsyncGen,
-    CompletionResponseGen,
-    LLMMetadata,
-)
-from llama_index.core.llms.callbacks import llm_chat_callback, llm_completion_callback
 from llama_index.core.query_engine import RetrieverQueryEngine
 from llama_index.core.retrievers import AutoMergingRetriever, VectorIndexRetriever
 from llama_index.core.vector_stores.types import VectorStoreQueryMode
+from src.llm.fallback_llm import FallbackLLM
 from ragas import EvaluationDataset, SingleTurnSample
 from ragas.embeddings import LlamaIndexEmbeddingsWrapper
 from ragas.integrations.llama_index import evaluate
@@ -150,9 +135,6 @@ MIN_ANSWER_RELEVANCY: float = 0.5
 MIN_CONTEXT_PRECISION: float = 0.4
 MIN_CONTEXT_RECALL: float = 0.4
 
-# Timeout por intento en el FallbackLLM (segundos). Sin backoff entre reintentos.
-_TIMEOUT_SEGUNDOS: int = 60
-
 # ---------------------------------------------------------------------------
 # Directorio donde se persisten los resultados
 # ---------------------------------------------------------------------------
@@ -161,350 +143,21 @@ _RESULTS_DIR = Path(__file__).parent / "results"
 
 
 # ---------------------------------------------------------------------------
-# FallbackLLM — cascada Groq → NVIDIA → OpenRouter para errores 429 / timeout
+# Sanitización de kwargs exclusiva para la suite de evaluación de Ragas
 # ---------------------------------------------------------------------------
 
 
-def _es_error_429(exc: BaseException) -> bool:
-    """
-    Determina si la excepción corresponde a un error de rate limit (HTTP 429).
-
-    Detecta:
-      - Excepciones cuyo mensaje contiene '429', 'rate limit' o 'too many requests'.
-      - httpx.HTTPStatusError y similares que expongan ``.response.status_code``.
-    """
-    msg = str(exc).lower()
-    if any(kw in msg for kw in ("rate limit", "429", "too many requests", "ratelimit")):
-        return True
-    with contextlib.suppress(AttributeError):
-        if exc.response.status_code == 429:  # type: ignore[union-attr]
-            return True
-    return False
-
-
-def _extraer_uso_tokens(respuesta: Any) -> tuple[int, int, int]:
-    """
-    Extrae (prompt_tokens, completion_tokens, total_tokens) de una respuesta LLM.
-
-    Los proveedores compatibles con la API de OpenAI exponen el uso en
-    ``respuesta.raw['usage']``; como fallback se revisa
-    ``respuesta.additional_kwargs['usage']``.
-    """
-    uso: dict[str, Any] = {}
-    raw = getattr(respuesta, "raw", None)
-    if isinstance(raw, dict):
-        uso = raw.get("usage") or {}
-    if not uso:
-        kwargs_adicionales = getattr(respuesta, "additional_kwargs", None)
-        if isinstance(kwargs_adicionales, dict):
-            uso = kwargs_adicionales.get("usage") or {}
-    return (
-        int(uso.get("prompt_tokens") or 0),
-        int(uso.get("completion_tokens") or 0),
-        int(uso.get("total_tokens") or 0),
-    )
-
-
 def _sanitizar_kwargs(kwargs: dict[str, Any]) -> dict[str, Any]:
-    """
-    Sanitiza los kwargs enviados a los LLMs subyacentes.
-    Fuerza 'n' <= 1 ya que proveedores como Groq y NVIDIA rechazan
+    """Sanitiza los kwargs enviados a los LLMs subyacentes.
+
+    Fuerza 'n' <= 1 ya que evaluadores y métricas de Ragas transmiten 'n'
+    en llamadas de inferencia y proveedores como Groq y NVIDIA rechazan
     solicitudes con n > 1 con error HTTP 400 (BadRequestError).
     """
     kw = dict(kwargs)
     if "n" in kw and kw["n"] != 1:
         kw["n"] = 1
     return kw
-
-
-def _construir_cadena_proveedores() -> list:
-    """
-    Construye la cadena de proveedores LLM en orden de prioridad.
-
-    Orden:
-      1. Groq       → openai/gpt-oss-120b
-      2. NVIDIA     → openai/gpt-oss-120b
-      3. OpenRouter → openai/gpt-5.4-nano
-
-    Los proveedores cuyo paquete no está instalado se omiten silenciosamente.
-    """
-    from llama_index.llms.groq import Groq  # noqa: PLC0415
-
-    proveedores: list = [
-        Groq(
-            model="openai/gpt-oss-120b",
-            api_key=os.getenv("GROQ_API_KEY", ""),
-            max_retries=1,
-        )
-    ]
-
-    try:
-        from llama_index.llms.nvidia import NVIDIA  # noqa: PLC0415
-
-        proveedores.append(
-            NVIDIA(
-                model="openai/gpt-oss-120b",
-                api_key=os.getenv("NVIDIA_API_KEY", ""),
-                max_retries=1,
-            )
-        )
-    except ImportError:
-        logger.warning("llama-index-llms-nvidia no instalado — fallback NVIDIA omitido.")
-
-    try:
-        from llama_index.llms.openai_like import OpenAILike  # noqa: PLC0415
-
-        proveedores.append(
-            OpenAILike(
-                model="openai/gpt-5.4-nano",
-                api_key=os.getenv("OPENROUTER_API_KEY", ""),
-                api_base="https://openrouter.ai/api/v1",
-                is_chat_model=True,
-                max_retries=1,
-            )
-        )
-    except ImportError:
-        logger.warning("llama-index-llms-openai-like no instalado — fallback OpenRouter omitido.")
-
-    cadena = " → ".join(
-        f"{type(p).__name__}(modelo={getattr(p, 'model', '?')})" for p in proveedores
-    )
-    logger.info("Cadena de fallback LLM construida: %s", cadena)
-    return proveedores
-
-
-class FallbackLLM(LLM):
-    """
-    LLM evaluador con fallback en cascada para errores 429 (rate limit).
-
-    Orden de proveedores:
-      1. Groq       → openai/gpt-oss-120b
-      2. NVIDIA     → openai/gpt-oss-120b
-      3. OpenRouter → openai/gpt-5.4-nano
-
-    Por cada llamada se intenta cada proveedor en orden. Si se recibe un error 429
-    o un timeout (60 s) se pasa inmediatamente al siguiente sin backoff.
-    Si todos los proveedores fallan, se propaga el último error.
-    """
-
-    _proveedores: list = PrivateAttr()
-    _llamadas_totales: int = PrivateAttr(default=0)
-    _tokens_prompt: int = PrivateAttr(default=0)
-    _tokens_completion: int = PrivateAttr(default=0)
-    _tokens_total: int = PrivateAttr(default=0)
-
-    def __init__(self, **kwargs: Any) -> None:
-        super().__init__(**kwargs)
-        self._proveedores = _construir_cadena_proveedores()
-
-    # ------------------------------------------------------------------
-    # Observabilidad: registro de éxito y consumo acumulado
-    # ------------------------------------------------------------------
-
-    def _registrar_exito(self, proveedor: Any, nombre_metodo: str, respuesta: Any) -> None:
-        """
-        Registra una llamada LLM exitosa: acumula tokens consumidos y emite
-        un log con proveedor, modelo, método invocado y estado del contador.
-        """
-        prompt_t, completion_t, total_t = _extraer_uso_tokens(respuesta)
-        self._llamadas_totales += 1
-        self._tokens_prompt += prompt_t
-        self._tokens_completion += completion_t
-        self._tokens_total += total_t
-        logger.info(
-            "LLM ok | metodo=%s | proveedor=%s | modelo=%s | "
-            "tokens(prompt=%d, completion=%d, total=%d) | acumulado[%s]",
-            nombre_metodo,
-            type(proveedor).__name__,
-            getattr(proveedor, "model", "?"),
-            prompt_t,
-            completion_t,
-            total_t,
-            self.resumen_consumo(),
-        )
-
-    def resumen_consumo(self) -> str:
-        """Resumen legible del consumo acumulado de llamadas y tokens."""
-        return (
-            f"llamadas={self._llamadas_totales}, "
-            f"tokens(prompt={self._tokens_prompt}, "
-            f"completion={self._tokens_completion}, total={self._tokens_total})"
-        )
-
-    @property
-    def metadata(self) -> LLMMetadata:
-        return LLMMetadata(
-            model_name="fallback-llm",
-            context_window=32_768,
-            num_output=2_048,
-            is_chat_model=True,
-        )
-
-    # ------------------------------------------------------------------
-    # Helpers internos de fallback
-    # ------------------------------------------------------------------
-
-    def _intentar_sync(self, nombre_metodo: str, *args: Any, **kwargs: Any) -> Any:
-        """
-        Ejecuta ``nombre_metodo`` en cada proveedor con timeout de
-        ``_TIMEOUT_SEGUNDOS`` segundos. Sin backoff entre intentos.
-        """
-        kwargs_limpios = _sanitizar_kwargs(kwargs)
-        ultimo_error: BaseException = RuntimeError("No hay proveedores disponibles.")
-        for proveedor in self._proveedores:
-            try:
-                fn = getattr(proveedor, nombre_metodo)
-                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-                    futuro = pool.submit(fn, *args, **kwargs_limpios)
-                    respuesta = futuro.result(timeout=_TIMEOUT_SEGUNDOS)
-                self._registrar_exito(proveedor, nombre_metodo, respuesta)
-                return respuesta
-            except (concurrent.futures.TimeoutError, TimeoutError) as exc:
-                ultimo_error = exc
-                logger.warning(
-                    "Timeout (%ds) en %s(modelo=%s).%s — pasando al siguiente proveedor.",
-                    _TIMEOUT_SEGUNDOS,
-                    type(proveedor).__name__,
-                    getattr(proveedor, "model", "?"),
-                    nombre_metodo,
-                )
-            except Exception as exc:
-                if _es_error_429(exc):
-                    ultimo_error = exc
-                    logger.warning(
-                        "Rate limit (429) en %s(modelo=%s).%s — pasando al siguiente proveedor.",
-                        type(proveedor).__name__,
-                        getattr(proveedor, "model", "?"),
-                        nombre_metodo,
-                    )
-                else:
-                    raise
-        logger.error(
-            "Todos los proveedores fallaron en '%s'. Último error: %s",
-            nombre_metodo,
-            ultimo_error,
-        )
-        raise RuntimeError(
-            f"Todos los proveedores fallaron en '{nombre_metodo}'."
-        ) from ultimo_error
-
-    async def _intentar_async(self, nombre_metodo: str, *args: Any, **kwargs: Any) -> Any:
-        """
-        Variante async de ``_intentar_sync``: usa ``asyncio.wait_for`` para el timeout.
-        Sin backoff entre intentos.
-        """
-        kwargs_limpios = _sanitizar_kwargs(kwargs)
-        ultimo_error: BaseException = RuntimeError("No hay proveedores disponibles.")
-        for proveedor in self._proveedores:
-            try:
-                coro = getattr(proveedor, nombre_metodo)(*args, **kwargs_limpios)
-                respuesta = await asyncio.wait_for(coro, timeout=float(_TIMEOUT_SEGUNDOS))
-                self._registrar_exito(proveedor, nombre_metodo, respuesta)
-                return respuesta
-            except TimeoutError as exc:
-                ultimo_error = exc
-                logger.warning(
-                    "Timeout async (%ds) en %s(modelo=%s).%s — pasando al siguiente proveedor.",
-                    _TIMEOUT_SEGUNDOS,
-                    type(proveedor).__name__,
-                    getattr(proveedor, "model", "?"),
-                    nombre_metodo,
-                )
-            except Exception as exc:
-                if _es_error_429(exc):
-                    ultimo_error = exc
-                    logger.warning(
-                        "Rate limit (429) async en %s(modelo=%s).%s — pasando al siguiente.",
-                        type(proveedor).__name__,
-                        getattr(proveedor, "model", "?"),
-                        nombre_metodo,
-                    )
-                else:
-                    raise
-        logger.error(
-            "Todos los proveedores fallaron (async) en '%s'. Último error: %s",
-            nombre_metodo,
-            ultimo_error,
-        )
-        raise RuntimeError(
-            f"Todos los proveedores async fallaron en '{nombre_metodo}'."
-        ) from ultimo_error
-
-    # ------------------------------------------------------------------
-    # Métodos abstractos requeridos por LLM (sync)
-    # ------------------------------------------------------------------
-
-    @llm_completion_callback()
-    def complete(self, prompt: str, formatted: bool = False, **kwargs: Any) -> CompletionResponse:
-        """Completa el prompt con fallback en cascada."""
-        return self._intentar_sync("complete", prompt, formatted=formatted, **kwargs)
-
-    @llm_completion_callback()
-    def stream_complete(
-        self, prompt: str, formatted: bool = False, **kwargs: Any
-    ) -> CompletionResponseGen:
-        """
-        Delega a ``complete`` sin streaming real.
-        Ragas no usa streaming; este wrapper cumple el contrato de tipo.
-        """
-        resp = self.complete(prompt, formatted=formatted, **kwargs)
-        yield resp
-
-    @llm_chat_callback()
-    def chat(self, messages: Sequence[ChatMessage], **kwargs: Any) -> ChatResponse:
-        """Chat con fallback en cascada."""
-        return self._intentar_sync("chat", messages, **kwargs)
-
-    @llm_chat_callback()
-    def stream_chat(self, messages: Sequence[ChatMessage], **kwargs: Any) -> ChatResponseGen:
-        """
-        Delega a ``chat`` sin streaming real.
-        Ragas no usa streaming; este wrapper cumple el contrato de tipo.
-        """
-        resp = self.chat(messages, **kwargs)
-        yield resp
-
-    # ------------------------------------------------------------------
-    # Métodos async (override para usar _intentar_async con asyncio.wait_for)
-    # ------------------------------------------------------------------
-
-    @llm_completion_callback()
-    async def acomplete(
-        self, prompt: str, formatted: bool = False, **kwargs: Any
-    ) -> CompletionResponse:
-        """Variante async de ``complete`` con fallback y timeout."""
-        return await self._intentar_async("acomplete", prompt, formatted=formatted, **kwargs)
-
-    @llm_chat_callback()
-    async def achat(self, messages: Sequence[ChatMessage], **kwargs: Any) -> ChatResponse:
-        """Variante async de ``chat`` con fallback y timeout."""
-        return await self._intentar_async("achat", messages, **kwargs)
-
-    @llm_chat_callback()
-    def astream_chat(self, messages: Sequence[ChatMessage], **kwargs: Any) -> ChatResponseAsyncGen:
-        """
-        Delega a ``achat`` sin streaming real.
-        Ragas no usa streaming; este stub cumple el contrato de tipos de BaseLLM.
-        """
-
-        async def _gen():
-            yield await self.achat(messages, **kwargs)
-
-        return _gen()
-
-    @llm_completion_callback()
-    def astream_complete(
-        self, prompt: str, formatted: bool = False, **kwargs: Any
-    ) -> CompletionResponseAsyncGen:
-        """
-        Delega a ``acomplete`` sin streaming real.
-        Ragas no usa streaming; este stub cumple el contrato de tipos de BaseLLM.
-        """
-
-        async def _gen():
-            yield await self.acomplete(prompt, formatted=formatted, **kwargs)
-
-        return _gen()
 
 
 # ---------------------------------------------------------------------------
@@ -591,7 +244,7 @@ def fallback_llm():
     Al desmontar el módulo emite en el log el resumen del consumo total
     de llamadas y tokens de toda la suite.
     """
-    llm = FallbackLLM()
+    llm = FallbackLLM(kwargs_sanitizer=_sanitizar_kwargs)
     yield llm
     logger.info("Consumo total LLM del módulo ragas: %s", llm.resumen_consumo())
 
