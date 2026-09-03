@@ -20,67 +20,38 @@ Decisión de diseño — nodo `respond` (Opción B):
 """
 
 from __future__ import annotations
-
+from src.agent.state import BugReportExtraction, State
 from pathlib import Path
 from typing import Annotated, Any, Literal, NotRequired
 
 from dotenv import load_dotenv
 from guardrails import Guard
-from langsmith import AsyncClient
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.tools import BaseTool
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_mcp_adapters.tools import load_mcp_tools
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
+from langgraph.types import interrupt
 from langgraph.prebuilt import ToolNode, tools_condition
 from pydantic import BaseModel, Field
 from typing_extensions import TypedDict
 
+import asyncio
+import logging
+import os
+from src.prompts import get_prompt
 from src.rag.engine import RAGEngine
+from src.redmine.client import RedmineClient, RedmineAPIError
 from src.utils.get_llm import get_llm
+
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
-# ==============================================================================
-# Estado del Agente
-# ==============================================================================
-
-
-class State(TypedDict):
-    messages: Annotated[list[Any], add_messages]
-    user_input: NotRequired[str | None]  # opcional: lo escribe analyze_safe_query
-    is_safe_query: NotRequired[bool]  # opcional: puede faltar si analyze_safe_query falla
-    intent: Literal[
-        "query_issue", "create_issue", "update_issue", "list_issues", "search_docs", "general"
-    ]
-    redmine_result: str  # resultado serializado del redmine_agent
-    rag_context: str  # contexto recuperado por LlamaIndex
-    retrieved_issue_ids: NotRequired[list[int]]
-    error: str | None
-
-
-import os
-
-_PERSONAL_SENTINEL = {"personal", ""}
-
-
-def _get_org() -> str | None:
-    raw = os.getenv("LANGSMITH_HUB_ORG", "").strip()
-    if raw.lower() in _PERSONAL_SENTINEL:
-        return None
-    return raw
-
-
-_ls_client = AsyncClient()
-
-
-def _get_prompt_name(name: str) -> str:
-    org = _get_org()
-    return f"{org}/{name}" if org else name
-
 
 # ==============================================================================
-# Nodo 0: Clasificación de intención
+# Clasificación de seguridad (safe-query)
 # ==============================================================================
 
 
@@ -91,7 +62,7 @@ class SafeQueryClassification(BaseModel):
     is_safe_query: bool
 
 
-async def analyze_safe_query(state: State) -> State:
+async def analyze_safe_query_node(state: State) -> State:
     """
     Clasifica si la consulta es segura para enviar al RAG o Redmine.
     Extrae el contenido de texto del último mensaje y lo persiste en user_input.
@@ -100,40 +71,46 @@ async def analyze_safe_query(state: State) -> State:
     # Extraer siempre el string de contenido, no el objeto mensaje
     user_input: str = last_msg.content if hasattr(last_msg, "content") else str(last_msg)
 
-    llm = get_llm("groq", "openai/gpt-oss-120b", 0.0)
+    llm = get_llm("groq", "openai/gpt-oss-20b", 0.0)
     structured_llm = llm.with_structured_output(SafeQueryClassification)
 
-    prompt = await _ls_client.pull_prompt(_get_prompt_name("analyze-safe-query"))
+    prompt = get_prompt("analyze-safe-query")
     messages = prompt.format_messages(user_input=user_input)
 
     response = await structured_llm.ainvoke(messages)
 
     return {
-        "user_input": user_input,  # string limpio para los nodos siguientes
+        "user_input": user_input,
         "is_safe_query": response.is_safe_query,
     }
 
 
 # ==============================================================================
-# Nodo 1: Clasificación de intención
+# Clasificación de intención
 # ==============================================================================
 
 
 class IntentClassification(BaseModel):
-    reasoning: str = Field(
-        description="Breve razonamiento paso a paso de por qué elegiste esa intención"
-    )
-    intent: Literal["redmine_mcp", "rag_query", "general"]
+    reasoning: str = Field(description="Explicación breve de por qué se eligió la intención.")
+    intent: Literal["knowledge_query", "incident_report", "general", "rag_query", "redmine_mcp"]
 
 
-async def analyze_intent(state: State) -> State:
+def route_after_analyze(state: dict[str, Any]) -> str:
+    """Función de enrutamiento mantenida para compatibilidad con tests unitarios."""
+    intent = state.get("intent", "general")
+    if intent in ("rag_query", "knowledge_query"):
+        return "rag_query"
+    elif intent in ("redmine_mcp", "incident_report"):
+        return "redmine_agent"
+    return "respond_general"
+
+
+async def analyze_intent_node(state: State) -> State:
     """
-    Clasifica la intención del último mensaje del usuario.
+    Clasifica la intención del mensaje del usuario.
 
     Salida al estado: state["intent"], state["user_input"]
     """
-    # Fallback defensivo: si analyze_safe_query falló antes de escribir user_input,
-    # lo recuperamos directamente del último mensaje.
     last_msg = state["messages"][-1]
     user_input: str = state.get("user_input") or (
         last_msg.content if hasattr(last_msg, "content") else str(last_msg)
@@ -141,7 +118,7 @@ async def analyze_intent(state: State) -> State:
     llm = get_llm("groq", "openai/gpt-oss-20b", 0.1)
     structured_llm = llm.with_structured_output(IntentClassification)
 
-    prompt = await _ls_client.pull_prompt(_get_prompt_name("analyze-intent"))
+    prompt = get_prompt("analyze-intent")
     messages = prompt.format_messages(user_input=user_input)
 
     response = await structured_llm.ainvoke(messages)
@@ -153,7 +130,7 @@ async def analyze_intent(state: State) -> State:
 
 
 # ==============================================================================
-# Nodo 2: Redmine Agent (via MCP)
+# Rama 1: Consulta a la documentación (Knowledge Agent)
 # ==============================================================================
 
 # Rutas resueltas una sola vez al importar el módulo.
@@ -161,6 +138,28 @@ async def analyze_intent(state: State) -> State:
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 _MCP_SERVER = _PROJECT_ROOT / "mcp" / "redmine" / "server.py"
 _PYTHON_EXE = _PROJECT_ROOT / ".venv" / "bin" / "python"
+
+_MCP_CONFIG = {
+    "redmine": {
+        "command": str(_PYTHON_EXE),
+        "args": [str(_MCP_SERVER)],
+        "transport": "stdio",
+        "env": {
+            "REDMINE_URL": os.getenv("REDMINE_URL", ""),
+            "REDMINE_API_KEY": os.getenv("REDMINE_API_KEY", ""),
+            "PYTHONPATH": str(_PROJECT_ROOT / "mcp" / "redmine"),
+        },
+    }
+}
+
+
+async def get_redmine_tools(allowed_names: set[str] | None = None) -> list[BaseTool]:
+    """Carga herramientas del servidor MCP de Redmine, filtrando opcionalmente por nombre."""
+    client = MultiServerMCPClient(_MCP_CONFIG)
+    tools = await client.get_tools(server_name="redmine")
+    if allowed_names is not None:
+        tools = [t for t in tools if t.name in allowed_names]
+    return tools
 
 
 def make_redmine_agent_node():
@@ -171,21 +170,6 @@ def make_redmine_agent_node():
     y evita el consumo desmedido de tokens en el proveedor de LLM.
     """
 
-    import os
-
-    mcp_config = {
-        "redmine": {
-            "command": str(_PYTHON_EXE),
-            "args": [str(_MCP_SERVER)],
-            "transport": "stdio",
-            "env": {
-                "REDMINE_URL": os.getenv("REDMINE_URL", ""),
-                "REDMINE_API_KEY": os.getenv("REDMINE_API_KEY", ""),
-                "PYTHONPATH": str(_PROJECT_ROOT / "mcp" / "redmine"),
-            },
-        }
-    }
-
     llm = get_llm("gemini", "gemini-2.5-flash", 0.0)
 
     async def redmine_agent(state: State) -> State:
@@ -193,13 +177,13 @@ def make_redmine_agent_node():
         Nodo async que crea el cliente MCP, carga las herramientas y ejecuta
         un sub-grafo con ToolNode y tools_condition para interactuar con Redmine.
         """
-        client = MultiServerMCPClient(mcp_config)
+        client = MultiServerMCPClient(_MCP_CONFIG)
 
         async with client.session("redmine") as session:
             tools = await load_mcp_tools(session)
             llm_with_tools = llm.bind_tools(tools)
 
-            prompt = await _ls_client.pull_prompt(_get_prompt_name("redmine-agent"))
+            prompt = get_prompt("redmine-agent")
             # La template de redmine-agent solo tiene un SystemMessage, lo extraemos:
             sys_msg = prompt.format_messages()[0]
 
@@ -270,7 +254,7 @@ def _rag_query_sync(question: str) -> dict[str, Any]:
     return get_rag_engine().query(question)
 
 
-async def rag_query(state: State) -> dict[str, Any]:
+async def rag_query_node(state: State) -> dict[str, Any]:
     user_question = state["user_input"]
 
     # Búsqueda vectorial async nativa — no bloquea el event loop de LangGraph
@@ -284,7 +268,7 @@ async def rag_query(state: State) -> dict[str, Any]:
 # ==============================================================================
 
 
-async def respond(state: State) -> State:
+async def respond_knowledge_node(state: State) -> State:
     """
     Genera la respuesta final al usuario combinando:
       - state["rag_context"]: contexto recuperado por LlamaIndex
@@ -311,7 +295,7 @@ async def respond(state: State) -> State:
             "No se recuperó contexto del RAG. Revise si existe contexto indexado o si la pregunta es válida."
         )
 
-    prompt = await _ls_client.pull_prompt(_get_prompt_name("respond-rag"))
+    prompt = get_prompt("respond-rag")
     messages = prompt.format_messages(rag_context=rag_context, user_input=user_question)
 
     issue_ids = state.get("retrieved_issue_ids", [])
@@ -338,14 +322,14 @@ async def respond(state: State) -> State:
 # ==============================================================================
 
 
-async def respond_general(state: State) -> State:
+async def respond_general_node(state: State) -> State:
     """
     Responde a intenciones generales (saludos, preguntas simples)
     sin necesidad de RAG ni Redmine.
     """
     llm = get_llm("nvidia", "openai/gpt-oss-120b", 0.5)
 
-    prompt = await _ls_client.pull_prompt(_get_prompt_name("respond-general"))
+    prompt = get_prompt("respond-general")
     sys_msg = prompt.format_messages()[0]
 
     response = await llm.ainvoke([sys_msg] + list(state["messages"]))
@@ -362,7 +346,7 @@ async def respond_general(state: State) -> State:
 # ==============================================================================
 
 
-async def output_guardrail(state: State) -> State:
+async def output_guardrail_node(state: State) -> State:
     """
     Nodo de guardrail de salida usando Guardrails AI.
     Valida la respuesta generada por el LLM/agente antes de entregarla al usuario.
@@ -391,19 +375,255 @@ async def output_guardrail(state: State) -> State:
 
 
 # ==============================================================================
-# Router (Edge Condicional)
+# QA Evalator Node
 # ==============================================================================
 
 
-def route_after_analyze(state: State) -> str:
-    intent = state.get("intent", "general")
+async def qa_evaluator_node(state: State) -> State:
+    user_input = state["user_input"]
 
-    if intent == "rag_query":
-        return "rag_query"
-    elif intent == "redmine_mcp":
-        return "redmine_agent"
+    llm = get_llm("nvidia", "openai/gpt-oss-120b", 0.1)
+    structured_llm = llm.with_structured_output(BugReportExtraction)
+
+    prompt = get_prompt("qa-evaluator")
+    messages = prompt.format_messages(question=user_input)
+
+    response = await structured_llm.ainvoke(messages)
+
+    return {
+        "bug_analysis": response,
+    }
+
+
+# ==============================================================================
+# Ask Clarification Node
+# ==============================================================================
+
+
+async def ask_clarification_node(state: State) -> dict[str, Any]:
+    bug_analysis = state.get("bug_analysis")
+    missing_fields = bug_analysis.missing_fields if bug_analysis else []
+
+    llm = get_llm("nvidia", "openai/gpt-oss-120b", 0.1)
+
+    prompt = get_prompt("ask-clarification")
+    messages = prompt.format_messages(missing_fields=missing_fields)
+
+    response = await llm.ainvoke(messages)
+    question_text = response.content
+
+    user_response = interrupt(
+        {
+            "action": "provide_clarification",
+            "question": question_text,
+            "missing_fields": missing_fields,
+        }
+    )
+
+    updated_user_input = f"{state.get('user_input', '')}\n\n[Información adicional provista por el usuario]:\n{user_response}"
+
+    return {
+        "messages": [
+            AIMessage(content=question_text),
+            HumanMessage(content=str(user_response)),
+        ],
+        "user_input": updated_user_input,
+    }
+
+
+class DuplicateCheckResult(BaseModel):
+    is_duplicate: bool = Field(
+        description="True si el problema es un duplicado abierto o tiene una solución histórica idéntica."
+    )
+    duplicate_issue_id: int | None = Field(
+        default=None, description="ID del ticket duplicado o con la solución, si aplica."
+    )
+    reasoning: str = Field(
+        description="Justificación de la decisión basándose en el contexto recuperado o proyectos analizados."
+    )
+    suggested_project_id: str | None = Field(
+        default=None,
+        description="Identificador (identifier o id) del proyecto de Redmine más adecuado para crear el issue, elegido de los proyectos disponibles.",
+    )
+
+
+async def duplicate_and_rag_check_node(state: State) -> dict[str, Any]:
+    bug_analysis = state.get("bug_analysis")
+    if not bug_analysis:
+        return {}
+
+    # Construir Query Enriquecida
+    enriched_query = (
+        f"Problema: {bug_analysis.title_summary}\n"
+        f"Entorno: {bug_analysis.environment_info}\n"
+        f"Pasos: {bug_analysis.reproduction_steps}"
+    )
+
+    # 1. Recuperar contexto vía RAG
+    rag_context = ""
+    retrieved_ids = []
+    try:
+        result = await get_rag_engine().aquery(enriched_query)
+        rag_context = result.get("context", "")
+        retrieved_ids = result.get("issue_ids", [])
+    except Exception as e:
+        logger.warning(f"Error al consultar el motor RAG en duplicate check: {e}")
+
+    # 2. Obtener catálogo de proyectos de Redmine de forma no bloqueante
+    def _fetch_projects() -> list[dict[str, Any]]:
+        try:
+            client = RedmineClient()
+            return client.list_projects()
+        except Exception as e:
+            logger.warning(f"No se pudieron recuperar proyectos de Redmine: {e}")
+            return []
+
+    available_projects = await asyncio.to_thread(_fetch_projects)
+
+    if available_projects:
+        projects_text = "\n".join(
+            [
+                f"- ID/Identifier: '{p.get('identifier') or p.get('id')}' | Nombre: '{p.get('name')}' | Descripción: '{p.get('description', '')[:100]}'"
+                for p in available_projects
+            ]
+        )
     else:
-        return "respond_general"
+        default_proj = os.getenv("REDMINE_DEFAULT_PROJECT", "test-project")
+        projects_text = f"- ID/Identifier: '{default_proj}' | Nombre: 'Proyecto por defecto'"
+
+    # 3. Evaluar duplicados y deducir proyecto con LLM
+    llm = get_llm("nvidia", "openai/gpt-oss-120b", 0.1)
+    structured_llm = llm.with_structured_output(DuplicateCheckResult)
+
+    prompt_template = get_prompt("triage-duplicate-check")
+    formatted_rag_context = (
+        rag_context
+        if rag_context.strip()
+        else "No se encontraron tickets similares en la base de conocimiento (similitud baja o nula)."
+    )
+    messages = prompt_template.format_messages(
+        enriched_query=enriched_query,
+        rag_context=formatted_rag_context,
+        projects_text=projects_text,
+    )
+
+    eval_result = await structured_llm.ainvoke(messages)
+
+    suggested_proj = eval_result.suggested_project_id
+    if not suggested_proj:
+        if available_projects:
+            suggested_proj = str(
+                available_projects[0].get("identifier") or available_projects[0].get("id")
+            )
+        else:
+            suggested_proj = os.getenv("REDMINE_DEFAULT_PROJECT", "test-project")
+
+    return {
+        "is_duplicate": eval_result.is_duplicate,
+        "duplicate_issue_id": eval_result.duplicate_issue_id,
+        "suggested_project_id": suggested_proj,
+        "available_projects": available_projects,
+        "rag_context": rag_context,
+        "retrieved_issue_ids": retrieved_ids,
+    }
+
+
+async def confirm_issue_creation_node(state: State) -> dict[str, Any]:
+    """
+    Pausa el flujo (HITL) para que el usuario confirme o seleccione el proyecto
+    de Redmine donde se creará el ticket antes de proceder a la creación.
+    """
+    bug_analysis = state.get("bug_analysis")
+    suggested_project = state.get("suggested_project_id") or os.getenv(
+        "REDMINE_DEFAULT_PROJECT", "test-project"
+    )
+    available_projects = state.get("available_projects", [])
+
+    project_options = [
+        {"id": p.get("id"), "identifier": p.get("identifier"), "name": p.get("name")}
+        for p in available_projects
+    ]
+
+    question_text = (
+        f"Se creará un nuevo ticket para el incidente '{bug_analysis.title_summary if bug_analysis else 'Incidente'}' "
+        f"en el proyecto '{suggested_project}'. ¿Deseas confirmar este proyecto o seleccionar otro?"
+    )
+
+    user_response = interrupt(
+        {
+            "action": "confirm_issue_creation",
+            "question": question_text,
+            "suggested_project": suggested_project,
+            "available_projects": project_options,
+        }
+    )
+
+    selected_project = suggested_project
+    if isinstance(user_response, dict) and user_response.get("project_id"):
+        selected_project = str(user_response["project_id"])
+    elif isinstance(user_response, str) and user_response.strip():
+        resp_clean = user_response.strip()
+        if resp_clean.lower() not in {"si", "sí", "yes", "confirmar", "ok", "confirmo"}:
+            selected_project = resp_clean
+
+    return {
+        "target_project_id": selected_project,
+        "messages": [
+            AIMessage(content=question_text),
+            HumanMessage(content=str(user_response)),
+        ],
+    }
+
+
+async def redmine_issue_creator_node(state: State) -> dict[str, Any]:
+    """
+    Crea el issue directamente mediante RedmineClient (API REST) usando el proyecto confirmado.
+    """
+    bug_analysis = state.get("bug_analysis")
+    if not bug_analysis:
+        return {}
+
+    target_project = (
+        state.get("target_project_id")
+        or state.get("suggested_project_id")
+        or os.getenv("REDMINE_DEFAULT_PROJECT", "test-project")
+    )
+
+    description = (
+        f"h3. Pasos para Reproducir\n{bug_analysis.reproduction_steps}\n\n"
+        f"h3. Entorno\n{bug_analysis.environment_info}"
+    )
+
+    def _create() -> dict[str, Any]:
+        client = RedmineClient()
+        return client.create_issue(
+            project_id=target_project,
+            subject=bug_analysis.title_summary,
+            description=description,
+        )
+
+    issue_data = await asyncio.to_thread(_create)
+    issue_id = issue_data["id"]
+
+    base_url = (os.getenv("REDMINE_URL")).rstrip("/")
+    issue_url = f"{base_url}/issues/{issue_id}"
+
+    return {
+        "created_issue_id": issue_id,
+        "created_issue_url": issue_url,
+    }
+
+
+async def respond_existing_solution_node(state: State) -> State:
+    dup_id = state.get("duplicate_issue_id")
+    msg = f"He encontrado que este problema ya está documentado o reportado en el ticket #{dup_id}."
+    return {"final_answer": msg, "messages": [AIMessage(content=msg)]}
+
+
+async def respond_creation_summary_node(state: State) -> State:
+    url = state.get("created_issue_url", "#")
+    msg = f"He creado un nuevo ticket para este incidente: {url}"
+    return {"final_answer": msg, "messages": [AIMessage(content=msg)]}
 
 
 # ==============================================================================
@@ -414,55 +634,74 @@ def route_after_analyze(state: State) -> str:
 def build_graph() -> StateGraph:
     workflow = StateGraph(State)
 
-    # ── Nodos ──────────────────────────────────────────────────────────────────
-    workflow.add_node("analyze_safe_query", analyze_safe_query)
-    workflow.add_node("analyze_intent", analyze_intent)
-    workflow.add_node("redmine_agent", make_redmine_agent_node())
-    workflow.add_node("rag_query", rag_query)
-    workflow.add_node("respond", respond)
-    workflow.add_node("respond_general", respond_general)
-    workflow.add_node("output_guardrail", output_guardrail)
+    # ── 1. Registro de Nodos ──────────────────────────────────────────────────
+    workflow.add_node("analyze_safe_query", analyze_safe_query_node)
+    workflow.add_node("analyze_intent", analyze_intent_node)
 
-    # ── Edges ──────────────────────────────────────────────────────────────────
+    # Rama RAG
+    workflow.add_node("rag_knowledge_query", rag_query_node)
+    workflow.add_node("respond_knowledge", respond_knowledge_node)
+
+    # Rama QA & Triaje
+    workflow.add_node("qa_evaluator", qa_evaluator_node)
+    workflow.add_node("ask_clarification", ask_clarification_node)
+    workflow.add_node("duplicate_and_rag_check", duplicate_and_rag_check_node)
+    workflow.add_node("confirm_creation", confirm_issue_creation_node)
+    workflow.add_node("redmine_creator", redmine_issue_creator_node)
+    workflow.add_node("respond_existing", respond_existing_solution_node)
+    workflow.add_node("respond_creation", respond_creation_summary_node)
+
+    # Rama General & Guardrails
+    workflow.add_node("respond_general", respond_general_node)
+    workflow.add_node("output_guardrail", output_guardrail_node)
+
+    # ── 2. Edges y Enrutamiento ───────────────────────────────────────────────
     workflow.add_edge(START, "analyze_safe_query")
 
-    def route_after_safe_query(state: State) -> str:
-        # Usamos .get() con default True: si el campo falta (nodo falló), dejamos pasar.
-        if state.get("is_safe_query", True):
-            return "analyze_intent"
-        else:
-            return END
+    def route_safe_query(state: State) -> str:
+        return "analyze_intent" if state.get("is_safe_query", True) else END
 
-    workflow.add_conditional_edges(
-        "analyze_safe_query",
-        route_after_safe_query,
-        {
-            "analyze_intent": "analyze_intent",
-            END: END,
-        },
-    )
+    workflow.add_conditional_edges("analyze_safe_query", route_safe_query)
 
-    workflow.add_conditional_edges(
-        "analyze_intent",
-        route_after_analyze,
-        {
-            "redmine_agent": "redmine_agent",
-            "rag_query": "rag_query",
-            "respond_general": "respond_general",
-        },
-    )
+    def route_intent(
+        state: State,
+    ) -> Literal["rag_knowledge_query", "qa_evaluator", "respond_general"]:
+        intent = state.get("intent", "general")
+        if intent == "knowledge_query":
+            return "rag_knowledge_query"
+        elif intent == "incident_report":
+            return "qa_evaluator"
+        return "respond_general"
 
-    # Redirigir salidas al Guardrail de Salida
-    workflow.add_edge("redmine_agent", "output_guardrail")
+    workflow.add_conditional_edges("analyze_intent", route_intent)
 
-    # RAG query → respond → output_guardrail
-    workflow.add_edge("rag_query", "respond")
-    workflow.add_edge("respond", "output_guardrail")
+    # Conexiones Rama RAG
+    workflow.add_edge("rag_knowledge_query", "respond_knowledge")
+    workflow.add_edge("respond_knowledge", "output_guardrail")
 
-    # General → output_guardrail
+    # Conexiones Rama QA
+    def route_qa(state: State) -> Literal["ask_clarification", "duplicate_and_rag_check"]:
+        analysis = state.get("bug_analysis")
+        if analysis and analysis.is_sufficient:
+            return "duplicate_and_rag_check"
+        return "ask_clarification"
+
+    workflow.add_conditional_edges("qa_evaluator", route_qa)
+    workflow.add_edge("ask_clarification", "qa_evaluator")
+
+    def route_duplicates(state: State) -> Literal["respond_existing", "confirm_creation"]:
+        if state.get("is_duplicate", False):
+            return "respond_existing"
+        return "confirm_creation"
+
+    workflow.add_conditional_edges("duplicate_and_rag_check", route_duplicates)
+    workflow.add_edge("confirm_creation", "redmine_creator")
+    workflow.add_edge("redmine_creator", "respond_creation")
+    workflow.add_edge("respond_existing", "output_guardrail")
+    workflow.add_edge("respond_creation", "output_guardrail")
+
+    # Conexiones Rama General y Salida
     workflow.add_edge("respond_general", "output_guardrail")
-
-    # El Guardrail de salida finaliza el grafo
     workflow.add_edge("output_guardrail", END)
 
     return workflow

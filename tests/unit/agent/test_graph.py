@@ -14,11 +14,14 @@ from pydantic import ValidationError
 # intentos de conexión a Qdrant (I/O bloqueante) durante la recolección de tests.
 with mock.patch("src.rag.engine.RAGEngine", autospec=True):
     from src.agent.graph import (
+        DuplicateCheckResult,
         IntentClassification,
         SafeQueryClassification,
         build_graph,
+        redmine_issue_creator_node,
         route_after_analyze,
     )
+from src.agent.state import BugReportExtraction
 
 
 def test_safe_query_classification_schema_valido():
@@ -79,3 +82,44 @@ def test_build_graph_compiles_successfully():
     # Aseguramos que se creó un CompiledStateGraph y tiene nodos iniciales
     assert graph is not None
     assert hasattr(graph, "invoke")
+
+
+def test_duplicate_check_result_schema():
+    """Valida que DuplicateCheckResult soporte suggested_project_id."""
+    res = DuplicateCheckResult(
+        is_duplicate=False,
+        reasoning="No hay tickets parecidos, pertenece al CRM",
+        suggested_project_id="sales-crm",
+    )
+    assert res.is_duplicate is False
+    assert res.suggested_project_id == "sales-crm"
+    assert res.duplicate_issue_id is None
+
+
+@pytest.mark.asyncio
+async def test_redmine_issue_creator_node_url_format(monkeypatch):
+    """Verifica que el creador use RedmineClient y devuelva {REDMINE_URL}/issues/{id}."""
+    monkeypatch.setenv("REDMINE_URL", "http://redmine.corp.local:3000")
+
+    mock_client = mock.MagicMock()
+    mock_client.create_issue.return_value = {"id": 9876}
+
+    with mock.patch("src.agent.graph.RedmineClient", return_value=mock_client):
+        state = {
+            "bug_analysis": BugReportExtraction(
+                is_sufficient=True,
+                title_summary="Falla en autenticación OAuth",
+                reproduction_steps="1. Click login\n2. Error 500",
+                environment_info="Chrome v120 / Linux",
+            ),
+            "target_project_id": "auth-service",
+        }
+        res = await redmine_issue_creator_node(state)
+
+        assert res["created_issue_id"] == 9876
+        assert res["created_issue_url"] == "http://redmine.corp.local:3000/issues/9876"
+        mock_client.create_issue.assert_called_once_with(
+            project_id="auth-service",
+            subject="Falla en autenticación OAuth",
+            description="h3. Pasos para Reproducir\n1. Click login\n2. Error 500\n\nh3. Entorno\nChrome v120 / Linux",
+        )

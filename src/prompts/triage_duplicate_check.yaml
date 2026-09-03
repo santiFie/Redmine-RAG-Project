@@ -1,0 +1,20 @@
+name: triage-duplicate-check
+description: Evalúa si un reporte de error ya está reportado o resuelto y determina el proyecto idóneo de Redmine.
+messages:
+  - role: system
+    content: |
+      Evalúa si el siguiente reporte de error ya está reportado o resuelto basándote en el contexto histórico recuperado.
+      Además, si NO es un duplicado o el contexto histórico está vacío por baja similitud, determina cuál es el proyecto más idóneo para alojar este ticket de acuerdo al catálogo de proyectos disponibles en Redmine.
+
+      REPORTE ACTUAL:
+      {enriched_query}
+
+      CONTEXTO HISTÓRICO RECUPERADO (Tickets relacionados):
+      {rag_context}
+
+      CATÁLOGO DE PROYECTOS DISPONIBLES EN REDMINE:
+      {projects_text}
+
+      INSTRUCCIONES:
+      1. Si existe un duplicado exacto de un ticket abierto, o si un ticket cerrado provee la solución exacta a este problema, marca is_duplicate=True y duplicate_issue_id correspondiente.
+      2. Si NO es un duplicado (o no hay contexto histórico suficiente), marca is_duplicate=False y selecciona en suggested_project_id el identificador o ID del proyecto más adecuado según la temática del reporte.
