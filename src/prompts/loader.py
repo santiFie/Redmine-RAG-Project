@@ -9,6 +9,7 @@ las compila como `ChatPromptTemplate` de LangChain y las almacena en una caché 
 from __future__ import annotations
 from langchain_core.prompts.message import BaseMessagePromptTemplate
 
+import asyncio
 import logging
 import os
 from functools import lru_cache
@@ -90,16 +91,21 @@ def load_all_prompts() -> dict[str, ChatPromptTemplate]:
     return prompts
 
 
-def get_prompt(name: str) -> ChatPromptTemplate:
+async def aload_all_prompts() -> dict[str, ChatPromptTemplate]:
     """
-    Obtiene un ChatPromptTemplate por nombre.
-    Busca primero en las plantillas locales compiladas.
-    Lanza KeyError si el prompt solicitado no existe.
+    Versión asíncrona de load_all_prompts.
+    Delega el escaneo y lectura en disco a un worker thread mediante asyncio.to_thread
+    para no bloquear el event loop de asyncio (evitando BlockingError de Blockbuster).
     """
+    return await asyncio.to_thread(load_all_prompts)
+
+
+def _resolve_prompt_from_dict(
+    name: str, prompts: dict[str, ChatPromptTemplate]
+) -> ChatPromptTemplate:
     # Si viene con prefijo de organización (ej. 'mi-org/analyze-intent'), tomar el nombre base
     base_name = name.split("/")[-1]
 
-    prompts = load_all_prompts()
     if base_name in prompts:
         return prompts[base_name]
 
@@ -114,3 +120,23 @@ def get_prompt(name: str) -> ChatPromptTemplate:
 
     available = sorted(list(set(prompts.keys())))
     raise KeyError(f"Prompt '{name}' no encontrado en {_PROMPTS_DIR}. Disponibles: {available}")
+
+
+def get_prompt(name: str) -> ChatPromptTemplate:
+    """
+    Obtiene un ChatPromptTemplate por nombre de forma síncrona.
+    Busca primero en las plantillas locales compiladas.
+    Lanza KeyError si el prompt solicitado no existe.
+    """
+    prompts = load_all_prompts()
+    return _resolve_prompt_from_dict(name, prompts)
+
+
+async def aget_prompt(name: str) -> ChatPromptTemplate:
+    """
+    Obtiene un ChatPromptTemplate por nombre de forma asíncrona.
+    Garantiza que la carga y compilación de prompts desde disco no bloquee el event loop.
+    Lanza KeyError si el prompt solicitado no existe.
+    """
+    prompts = await aload_all_prompts()
+    return _resolve_prompt_from_dict(name, prompts)

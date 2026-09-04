@@ -40,7 +40,7 @@ from typing_extensions import TypedDict
 import asyncio
 import logging
 import os
-from src.prompts import get_prompt
+from src.prompts import aget_prompt
 from src.rag.engine import RAGEngine
 from src.redmine.client import RedmineClient, RedmineAPIError
 from src.utils.get_llm import get_llm
@@ -74,7 +74,7 @@ async def analyze_safe_query_node(state: State) -> State:
     llm = get_llm("groq", "openai/gpt-oss-20b", 0.0)
     structured_llm = llm.with_structured_output(SafeQueryClassification)
 
-    prompt = get_prompt("analyze-safe-query")
+    prompt = await aget_prompt("analyze-safe-query")
     messages = prompt.format_messages(user_input=user_input)
 
     response = await structured_llm.ainvoke(messages)
@@ -118,7 +118,7 @@ async def analyze_intent_node(state: State) -> State:
     llm = get_llm("groq", "openai/gpt-oss-20b", 0.1)
     structured_llm = llm.with_structured_output(IntentClassification)
 
-    prompt = get_prompt("analyze-intent")
+    prompt = await aget_prompt("analyze-intent")
     messages = prompt.format_messages(user_input=user_input)
 
     response = await structured_llm.ainvoke(messages)
@@ -183,7 +183,7 @@ def make_redmine_agent_node():
             tools = await load_mcp_tools(session)
             llm_with_tools = llm.bind_tools(tools)
 
-            prompt = get_prompt("redmine-agent")
+            prompt = await aget_prompt("redmine-agent")
             # La template de redmine-agent solo tiene un SystemMessage, lo extraemos:
             sys_msg = prompt.format_messages()[0]
 
@@ -295,7 +295,7 @@ async def respond_knowledge_node(state: State) -> State:
             "No se recuperó contexto del RAG. Revise si existe contexto indexado o si la pregunta es válida."
         )
 
-    prompt = get_prompt("respond-rag")
+    prompt = await aget_prompt("respond-rag")
     messages = prompt.format_messages(rag_context=rag_context, user_input=user_question)
 
     issue_ids = state.get("retrieved_issue_ids", [])
@@ -329,7 +329,7 @@ async def respond_general_node(state: State) -> State:
     """
     llm = get_llm("nvidia", "openai/gpt-oss-120b", 0.5)
 
-    prompt = get_prompt("respond-general")
+    prompt = await aget_prompt("respond-general")
     sys_msg = prompt.format_messages()[0]
 
     response = await llm.ainvoke([sys_msg] + list(state["messages"]))
@@ -385,7 +385,7 @@ async def qa_evaluator_node(state: State) -> State:
     llm = get_llm("nvidia", "openai/gpt-oss-120b", 0.1)
     structured_llm = llm.with_structured_output(BugReportExtraction)
 
-    prompt = get_prompt("qa-evaluator")
+    prompt = await aget_prompt("qa-evaluator")
     messages = prompt.format_messages(question=user_input)
 
     response = await structured_llm.ainvoke(messages)
@@ -406,7 +406,7 @@ async def ask_clarification_node(state: State) -> dict[str, Any]:
 
     llm = get_llm("nvidia", "openai/gpt-oss-120b", 0.1)
 
-    prompt = get_prompt("ask-clarification")
+    prompt = await aget_prompt("ask-clarification")
     messages = prompt.format_messages(missing_fields=missing_fields)
 
     response = await llm.ainvoke(messages)
@@ -495,7 +495,7 @@ async def duplicate_and_rag_check_node(state: State) -> dict[str, Any]:
     llm = get_llm("nvidia", "openai/gpt-oss-120b", 0.1)
     structured_llm = llm.with_structured_output(DuplicateCheckResult)
 
-    prompt_template = get_prompt("triage-duplicate-check")
+    prompt_template = await aget_prompt("triage-duplicate-check")
     formatted_rag_context = (
         rag_context
         if rag_context.strip()
@@ -658,8 +658,8 @@ def build_graph() -> StateGraph:
     # ── 2. Edges y Enrutamiento ───────────────────────────────────────────────
     workflow.add_edge(START, "analyze_safe_query")
 
-    def route_safe_query(state: State) -> str:
-        return "analyze_intent" if state.get("is_safe_query", True) else END
+    def route_safe_query(state: State) -> Literal["analyze_intent", "__end__"]:
+        return "analyze_intent" if state.get("is_safe_query", True) else "__end__"
 
     workflow.add_conditional_edges("analyze_safe_query", route_safe_query)
 
@@ -706,10 +706,6 @@ def build_graph() -> StateGraph:
 
     return workflow
 
-
-# ==============================================================================
-# Compilación del Grafo
-# ==============================================================================
 
 workflow = build_graph()
 graph = workflow.compile()

@@ -6,7 +6,7 @@ Valida la carga, estructura e instanciación de todas las plantillas de prompts 
 
 import pytest
 from langchain_core.prompts import ChatPromptTemplate
-from src.prompts.loader import get_prompt, load_all_prompts
+from src.prompts.loader import aget_prompt, aload_all_prompts, get_prompt, load_all_prompts
 
 
 def test_load_all_prompts_contains_expected_keys():
@@ -77,3 +77,17 @@ def test_get_prompt_key_error_on_unknown():
     """Falla apropiadamente con KeyError si el prompt no existe."""
     with pytest.raises(KeyError):
         get_prompt("prompt-inexistente-12345")
+
+
+@pytest.mark.asyncio
+async def test_aget_prompt_and_aload_all_prompts():
+    """Valida la carga asíncrona de prompts con aget_prompt y aload_all_prompts."""
+    prompts = await aload_all_prompts()
+    assert "analyze-intent" in prompts
+
+    prompt = await aget_prompt("analyze-intent")
+    assert isinstance(prompt, ChatPromptTemplate)
+    assert "user_input" in prompt.input_variables
+
+    with pytest.raises(KeyError):
+        await aget_prompt("prompt-inexistente-12345")
