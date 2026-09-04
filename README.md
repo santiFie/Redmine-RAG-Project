@@ -96,7 +96,37 @@ The project enforces reliability through multiple testing layers:
 *   **RAG Evaluation (`make test-ragas`)**: An automated evaluation suite using **Ragas**. It spins up temporary vector collections, assesses the RAG pipeline on metrics like *Faithfulness* and *Answer Relevance*, and cleans up after itself. Results can be visualized via a local HTTP server (`make serve-ragas`).
 *   **MCP Smoke Tests (`make mcp-test`)**: Validates the isolated FastMCP server by performing a raw JSON-RPC handshake (`initialize`) over standard I/O streams using Docker.
 
+## 🔄 CI/CD Pipeline (GitHub Actions)
+
+The repository includes a comprehensive, multi-stage automated pipeline configured in [`.github/workflows/ci.yml`](file:///.github/workflows/ci.yml) triggered on pushes and pull requests across `main`, `master`, and `develop` branches. Concurrency groups automatically cancel redundant in-progress builds.
+
+```mermaid
+flowchart LR
+    Push([Push / PR]) --> Lint[1. Lint & Typecheck\nRuff + MyPy]
+    Push --> BuildUI[2. Angular UI Build\nNode.js 24]
+    Lint --> UnitTests[3. Unit Tests\nPytest isolated]
+    UnitTests & BuildUI --> Smoke[4. Docker Services & Smoke Tests\nCompose Up + Health Checks + MCP Handshake]
+```
+
+### Pipeline Stages
+
+1.  **Python Lint & Typecheck (`lint-python`)**:
+    *   Enforces code quality using **Ruff** for linting (`ruff check`) and formatting validation (`ruff format --check`).
+    *   Performs static type analysis using **MyPy** on `src/`.
+2.  **Angular UI Build Check (`build-ui`)**:
+    *   Sets up Node.js 24 with npm caching.
+    *   Runs `npm ci` and `npm run build` to verify frontend compilation and catch packaging regressions.
+3.  **Unit & Component Tests (`unit-tests`)**:
+    *   Runs isolated unit tests (`pytest tests/unit`) against core modules and the BFF service with mocked external credentials.
+4.  **Docker Services Up & Smoke Test (`services-smoke-test`)**:
+    *   **Ephemeral Environment Setup:** Dynamically generates CI configuration and spins up the complete multi-service stack via `docker compose up -d --build`.
+    *   **Health Readiness Polling:** Actively polls docker health checks until all services (`redmine_postgres`, `qdrant_vectordb`, `redmine_app`, `langgraph_api_server`, and `bff_server`) are fully `healthy`.
+    *   **Smoke Test Suite:** Executes `@pytest.mark.smoke` tests verifying live API endpoints and inter-service connectivity.
+    *   **MCP Handshake Smoke Test:** Simulates a raw JSON-RPC 2.0 `initialize` handshake over stdio against the Dockerized FastMCP server image.
+    *   **Teardown & Observability:** Automatically dumps container logs if any step fails and ensures thorough cleanup (`docker compose down -v`).
+
 ## ⚙️ Setup and Deployment
+
 
 ### Prerequisites
 *   Python >= 3.12
