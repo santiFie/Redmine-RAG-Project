@@ -17,10 +17,11 @@ def get_llm(
 
     _REGISTRY = {
         "groq": lambda: ChatGroq(model=model, temperature=temperature, timeout=120),
-        "nvidia": lambda: ChatNVIDIA(
+        "nvidia": lambda: ChatOpenAI(
             model=model,
+            base_url="https://integrate.api.nvidia.com/v1",
+            api_key=SecretStr(str(os.getenv("NVIDIA_API_KEY", ""))),
             temperature=temperature,
-            nvidia_api_key=str(os.getenv("NVIDIA_API_KEY")),
             timeout=120,
         ),
         "openrouter": lambda: ChatOpenAI(

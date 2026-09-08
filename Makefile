@@ -29,7 +29,10 @@ docker-down: ## Detiene la infraestructura de Docker
 	docker compose stop
 
 dev: ## Inicia el servidor de desarrollo de LangGraph
-	$(LANGGRAPH) dev --host 127.0.0.1 --port 8123 --allow-blocking
+	@echo "Levantando infraestructura Docker..."
+	@docker compose -f 'docker-compose.yml' up -d
+	@echo "Iniciando servidor LangGraph Dev..."
+	@$(LANGGRAPH) dev --host 127.0.0.1 --port 8123
 
 up: docker-up ## Levanta la infraestructura de Docker e inicia LangGraph Dev
 	@echo "Servicios Docker iniciados correctamente."

@@ -62,14 +62,17 @@ class SafeQueryClassification(BaseModel):
     is_safe_query: bool
 
 
-async def analyze_safe_query_node(state: State) -> State:
+async def analyze_safe_query_node(state: State) -> dict[str, Any]:
     """
     Clasifica si la consulta es segura para enviar al RAG o Redmine.
-    Extrae el contenido de texto del último mensaje y lo persiste en user_input.
     """
-    last_msg = state["messages"][-1]
-    # Extraer siempre el string de contenido, no el objeto mensaje
-    user_input: str = last_msg.content if hasattr(last_msg, "content") else str(last_msg)
+    messages = state.get("messages", [])
+    last_msg = messages[-1] if messages else None
+
+    user_input = state.get("user_input")
+    if not user_input and last_msg:
+        # user_input is in messages
+        user_input = last_msg.content if hasattr(last_msg, "content") else str(last_msg)
 
     llm = get_llm("groq", "openai/gpt-oss-20b", 0.0)
     structured_llm = llm.with_structured_output(SafeQueryClassification)
@@ -79,10 +82,16 @@ async def analyze_safe_query_node(state: State) -> State:
 
     response = await structured_llm.ainvoke(messages)
 
-    return {
+    output_state = {
         "user_input": user_input,
         "is_safe_query": response.is_safe_query,
     }
+
+    if not messages and user_input:
+        # add user input to messages (ground truth)
+        output_state["messages"] = [HumanMessage(content=user_input)]
+
+    return output_state
 
 
 # ==============================================================================
@@ -92,7 +101,7 @@ async def analyze_safe_query_node(state: State) -> State:
 
 class IntentClassification(BaseModel):
     reasoning: str = Field(description="Explicación breve de por qué se eligió la intención.")
-    intent: Literal["knowledge_query", "incident_report", "general", "rag_query", "redmine_mcp"]
+    intent: Literal["knowledge_query", "incident_report", "general"]
 
 
 def route_after_analyze(state: dict[str, Any]) -> str:
@@ -111,10 +120,7 @@ async def analyze_intent_node(state: State) -> State:
 
     Salida al estado: state["intent"], state["user_input"]
     """
-    last_msg = state["messages"][-1]
-    user_input: str = state.get("user_input") or (
-        last_msg.content if hasattr(last_msg, "content") else str(last_msg)
-    )
+    user_input: str = state["user_input"]
     llm = get_llm("groq", "openai/gpt-oss-20b", 0.1)
     structured_llm = llm.with_structured_output(IntentClassification)
 
@@ -124,7 +130,6 @@ async def analyze_intent_node(state: State) -> State:
     response = await structured_llm.ainvoke(messages)
 
     return {
-        "user_input": user_input,
         "intent": response.intent,
     }
 
@@ -327,7 +332,7 @@ async def respond_general_node(state: State) -> State:
     Responde a intenciones generales (saludos, preguntas simples)
     sin necesidad de RAG ni Redmine.
     """
-    llm = get_llm("nvidia", "openai/gpt-oss-120b", 0.5)
+    llm = get_llm("nvidia", "deepseek-ai/deepseek-v4-flash-0731", 0.5)
 
     prompt = await aget_prompt("respond-general")
     sys_msg = prompt.format_messages()[0]
@@ -382,7 +387,7 @@ async def output_guardrail_node(state: State) -> State:
 async def qa_evaluator_node(state: State) -> State:
     user_input = state["user_input"]
 
-    llm = get_llm("nvidia", "openai/gpt-oss-120b", 0.1)
+    llm = get_llm("nvidia", "deepseek-ai/deepseek-v4-flash-0731", 0.1)
     structured_llm = llm.with_structured_output(BugReportExtraction)
 
     prompt = await aget_prompt("qa-evaluator")
@@ -403,11 +408,26 @@ async def qa_evaluator_node(state: State) -> State:
 async def ask_clarification_node(state: State) -> dict[str, Any]:
     bug_analysis = state.get("bug_analysis")
     missing_fields = bug_analysis.missing_fields if bug_analysis else []
+    clarification_questions = bug_analysis.clarification_questions if bug_analysis else []
+    user_input = state.get("user_input", "")
 
-    llm = get_llm("nvidia", "openai/gpt-oss-120b", 0.1)
+    # Construir bloque contextualizado para el prompt
+    if clarification_questions:
+        formatted_items = "\n".join(f"- {q}" for q in clarification_questions)
+    elif missing_fields:
+        formatted_items = "\n".join(f"- {f}" for f in missing_fields)
+    else:
+        formatted_items = "- Contexto adicional o detalles sobre el comportamiento observado."
+
+    contextual_missing = (
+        f'Mensaje del usuario:\n"""{user_input}"""\n\n'
+        f"Puntos o preguntas a clarificar:\n{formatted_items}"
+    )
+
+    llm = get_llm("nvidia", "deepseek-ai/deepseek-v4-flash-0731", 0.1)
 
     prompt = await aget_prompt("ask-clarification")
-    messages = prompt.format_messages(missing_fields=missing_fields)
+    messages = prompt.format_messages(missing_fields=contextual_missing)
 
     response = await llm.ainvoke(messages)
     question_text = response.content
@@ -417,10 +437,14 @@ async def ask_clarification_node(state: State) -> dict[str, Any]:
             "action": "provide_clarification",
             "question": question_text,
             "missing_fields": missing_fields,
+            "clarification_questions": clarification_questions,
         }
     )
 
-    updated_user_input = f"{state.get('user_input', '')}\n\n[Información adicional provista por el usuario]:\n{user_response}"
+    current_turns = state.get("clarification_turns", 0) + 1
+    updated_user_input = (
+        f"{user_input}\n\n[Información adicional provista por el usuario]:\n{user_response}"
+    )
 
     return {
         "messages": [
@@ -428,6 +452,7 @@ async def ask_clarification_node(state: State) -> dict[str, Any]:
             HumanMessage(content=str(user_response)),
         ],
         "user_input": updated_user_input,
+        "clarification_turns": current_turns,
     }
 
 
@@ -453,11 +478,17 @@ async def duplicate_and_rag_check_node(state: State) -> dict[str, Any]:
         return {}
 
     # Construir Query Enriquecida
-    enriched_query = (
-        f"Problema: {bug_analysis.title_summary}\n"
-        f"Entorno: {bug_analysis.environment_info}\n"
-        f"Pasos: {bug_analysis.reproduction_steps}"
-    )
+    query_parts = [f"Problema: {bug_analysis.title_summary}"]
+    if getattr(bug_analysis, "incident_type", None):
+        query_parts.append(f"Tipo: {bug_analysis.incident_type}")
+    if getattr(bug_analysis, "technical_details", ""):
+        query_parts.append(f"Detalles: {bug_analysis.technical_details}")
+    if bug_analysis.environment_info:
+        query_parts.append(f"Entorno: {bug_analysis.environment_info}")
+    if bug_analysis.reproduction_steps:
+        query_parts.append(f"Pasos: {bug_analysis.reproduction_steps}")
+
+    enriched_query = "\n".join(query_parts)
 
     # 1. Recuperar contexto vía RAG
     rag_context = ""
@@ -492,7 +523,7 @@ async def duplicate_and_rag_check_node(state: State) -> dict[str, Any]:
         projects_text = f"- ID/Identifier: '{default_proj}' | Nombre: 'Proyecto por defecto'"
 
     # 3. Evaluar duplicados y deducir proyecto con LLM
-    llm = get_llm("nvidia", "openai/gpt-oss-120b", 0.1)
+    llm = get_llm("nvidia", "deepseek-ai/deepseek-v4-flash-0731", 0.1)
     structured_llm = llm.with_structured_output(DuplicateCheckResult)
 
     prompt_template = await aget_prompt("triage-duplicate-check")
@@ -589,10 +620,13 @@ async def redmine_issue_creator_node(state: State) -> dict[str, Any]:
         or os.getenv("REDMINE_DEFAULT_PROJECT", "test-project")
     )
 
-    description = (
-        f"h3. Pasos para Reproducir\n{bug_analysis.reproduction_steps}\n\n"
-        f"h3. Entorno\n{bug_analysis.environment_info}"
-    )
+    if getattr(bug_analysis, "description_markdown", "").strip():
+        description = bug_analysis.description_markdown
+    else:
+        description = (
+            f"h3. Pasos para Reproducir\n{bug_analysis.reproduction_steps}\n\n"
+            f"h3. Entorno\n{bug_analysis.environment_info}"
+        )
 
     def _create() -> dict[str, Any]:
         client = RedmineClient()
@@ -624,6 +658,17 @@ async def respond_creation_summary_node(state: State) -> State:
     url = state.get("created_issue_url", "#")
     msg = f"He creado un nuevo ticket para este incidente: {url}"
     return {"final_answer": msg, "messages": [AIMessage(content=msg)]}
+
+
+def route_qa(state: State) -> Literal["ask_clarification", "duplicate_and_rag_check"]:
+    """Enruta el flujo QA a verificación de duplicados o clarificación, evitando bucles."""
+    analysis = state.get("bug_analysis")
+    # Si ya se realizó al menos 1 turno de clarificación, no ciclar indefinidamente
+    if state.get("clarification_turns", 0) >= 1:
+        return "duplicate_and_rag_check"
+    if analysis and analysis.is_sufficient:
+        return "duplicate_and_rag_check"
+    return "ask_clarification"
 
 
 # ==============================================================================
@@ -680,12 +725,6 @@ def build_graph() -> StateGraph:
     workflow.add_edge("respond_knowledge", "output_guardrail")
 
     # Conexiones Rama QA
-    def route_qa(state: State) -> Literal["ask_clarification", "duplicate_and_rag_check"]:
-        analysis = state.get("bug_analysis")
-        if analysis and analysis.is_sufficient:
-            return "duplicate_and_rag_check"
-        return "ask_clarification"
-
     workflow.add_conditional_edges("qa_evaluator", route_qa)
     workflow.add_edge("ask_clarification", "qa_evaluator")
 
