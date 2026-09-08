@@ -47,11 +47,16 @@ def test_triage_duplicate_check_variables():
         rag_context="Ticket #102: Error al guardar factura en v1.2",
         projects_text="- ID: 'facturacion' | Nombre: 'Facturación'",
     )
-    assert len(messages) == 1
-    content = messages[0].content
-    assert "Error 500 al guardar factura" in content
-    assert "Ticket #102" in content
-    assert "facturacion" in content
+    assert len(messages) == 2
+
+    # Contenido del mensaje del sistema (projects_text)
+    system_content = messages[0].content
+    assert "facturacion" in system_content
+
+    # Contenido del mensaje humano (enriched_query y rag_context)
+    human_content = messages[1].content
+    assert "Error 500 al guardar factura" in human_content
+    assert "Ticket #102" in human_content
 
 
 def test_qa_evaluator_variables():

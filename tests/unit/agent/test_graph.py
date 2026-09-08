@@ -20,6 +20,7 @@ with mock.patch("src.rag.engine.RAGEngine", autospec=True):
         build_graph,
         redmine_issue_creator_node,
         route_after_analyze,
+        route_qa,
     )
 from src.agent.state import BugReportExtraction
 
@@ -40,9 +41,9 @@ def test_safe_query_classification_schema_invalido():
 
 def test_intent_classification_schema_valido():
     """Valida el esquema Pydantic para intenciones de redmine/rag/general."""
-    data = {"reasoning": "Quiere listar issues", "intent": "redmine_mcp"}
+    data = {"reasoning": "Quiere reportar un fallo en el sistema", "intent": "incident_report"}
     obj = IntentClassification(**data)
-    assert obj.intent == "redmine_mcp"
+    assert obj.intent == "incident_report"
 
 
 def test_intent_classification_schema_invalido():
@@ -122,4 +123,85 @@ async def test_redmine_issue_creator_node_url_format(monkeypatch):
             project_id="auth-service",
             subject="Falla en autenticación OAuth",
             description="h3. Pasos para Reproducir\n1. Click login\n2. Error 500\n\nh3. Entorno\nChrome v120 / Linux",
+        )
+
+
+def test_bug_report_extraction_adaptive_schema():
+    """Valida los campos adaptativos en BugReportExtraction para incidentes no deterministas."""
+    report = BugReportExtraction(
+        is_sufficient=True,
+        title_summary="Timeout 504 en servicio de facturación",
+        incident_type="infra_outage",
+        technical_details="Status 504, endpoint /api/v1/invoices, spike de latencia a las 14:00",
+        clarification_questions=[],
+        description_markdown="h3. Incidente de Producción\nTimeout en servicio de facturación.",
+    )
+    assert report.incident_type == "infra_outage"
+    assert report.is_sufficient is True
+    assert "504" in report.technical_details
+    assert report.clarification_questions == []
+
+
+def test_route_qa_logic():
+    """Verifica la lógica del enrutador QA y el escape hatch contra bucles."""
+    # Caso 1: Suficiente -> duplicate_and_rag_check
+    state_ok = {
+        "bug_analysis": BugReportExtraction(
+            is_sufficient=True,
+            title_summary="Error claro",
+        )
+    }
+    assert route_qa(state_ok) == "duplicate_and_rag_check"
+
+    # Caso 2: Insuficiente y sin turnos previos -> ask_clarification
+    state_insuficiente = {
+        "bug_analysis": BugReportExtraction(
+            is_sufficient=False,
+            title_summary="No anda",
+            missing_fields=["detalles"],
+        ),
+        "clarification_turns": 0,
+    }
+    assert route_qa(state_insuficiente) == "ask_clarification"
+
+    # Caso 3: Insuficiente pero ya hubo 1 turno de clarificación (escape hatch) -> duplicate_and_rag_check
+    state_turn_limit = {
+        "bug_analysis": BugReportExtraction(
+            is_sufficient=False,
+            title_summary="Sigue sin pasos pero usuario no los sabe",
+            missing_fields=["pasos"],
+        ),
+        "clarification_turns": 1,
+    }
+    assert route_qa(state_turn_limit) == "duplicate_and_rag_check"
+
+
+@pytest.mark.asyncio
+async def test_redmine_issue_creator_node_with_custom_markdown(monkeypatch):
+    """Verifica que el creador use description_markdown cuando esté presente."""
+    monkeypatch.setenv("REDMINE_URL", "http://redmine.corp.local:3000")
+
+    mock_client = mock.MagicMock()
+    mock_client.create_issue.return_value = {"id": 1234}
+
+    with mock.patch("src.agent.graph.RedmineClient", return_value=mock_client):
+        custom_desc = (
+            "h3. Incidente de Producción\nTimeout 504 en API de pagos.\nh3. Impacto\nCrítico"
+        )
+        state = {
+            "bug_analysis": BugReportExtraction(
+                is_sufficient=True,
+                title_summary="Timeout 504 en API de pagos",
+                incident_type="infra_outage",
+                description_markdown=custom_desc,
+            ),
+            "target_project_id": "payments",
+        }
+        res = await redmine_issue_creator_node(state)
+
+        assert res["created_issue_id"] == 1234
+        mock_client.create_issue.assert_called_once_with(
+            project_id="payments",
+            subject="Timeout 504 en API de pagos",
+            description=custom_desc,
         )

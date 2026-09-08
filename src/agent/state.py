@@ -23,6 +23,24 @@ class BugReportExtraction(BaseModel):
     )
     suggested_tracker: Literal["Bug", "Feature", "Soporte"] = Field(default="Bug")
     suggested_priority: Literal["Baja", "Normal", "Alta", "Urgente"] = Field(default="Normal")
+    incident_type: Literal[
+        "infra_outage", "backend_api", "frontend_ui", "data_config", "general_bug"
+    ] = Field(
+        default="general_bug",
+        description="Tipología técnica del incidente (infraestructura/timeout, API backend, UI frontend, datos/config o bug general).",
+    )
+    clarification_questions: list[str] = Field(
+        default_factory=list,
+        description="Preguntas contextuales específicas y empáticas dirigidas al usuario cuando falta información crítica.",
+    )
+    technical_details: str = Field(
+        default="",
+        description="Detalles técnicos adicionales recopilados (endpoints, códigos de estado, logs, horarios o impacto).",
+    )
+    description_markdown: str = Field(
+        default="",
+        description="Cuerpo del reporte formateado en sintaxis Redmine estructurado según el tipo de incidente.",
+    )
 
 
 class State(TypedDict):
@@ -31,6 +49,7 @@ class State(TypedDict):
     user_input: str
     is_safe_query: bool
     intent: Literal["knowledge_query", "incident_report", "general"]
+    clarification_turns: NotRequired[int]
 
     # Rama RAG Convencional
     rag_context: NotRequired[str]
