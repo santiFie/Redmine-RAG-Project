@@ -24,7 +24,9 @@ RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir "fastmcp>=2.0"
 
 # ── Copiar código fuente ───────────────────────────────────────────────────
-COPY . .
+COPY langgraph.json pyproject.toml ./
+COPY src/ ./src/
+COPY mcp/ ./mcp/
 
 # Puerto del servidor de LangGraph
 EXPOSE 8123
