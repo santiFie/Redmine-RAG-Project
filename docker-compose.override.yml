@@ -37,11 +37,16 @@ services:
       # Redmine dentro de la red Docker
       REDMINE_URL: http://redmine:3000
       REDMINE_HOST_URL: http://localhost:3000
+      # Directorio de caché para modelos Hugging Face / LlamaIndex
+      HF_HOME: /root/.cache/huggingface
+      LLAMA_INDEX_CACHE_DIR: /root/.cache/huggingface
     ports:
       - "${LANGGRAPH_PORT:-8123}:8123"
     volumes:
       # Montar el directorio de checkpoints de LangGraph
       - .langgraph_api:/app/.langgraph_api
+      # Persistencia de modelos Hugging Face
+      - ~/.cache/huggingface:/root/.cache/huggingface
     depends_on:
       postgres:
         condition: service_healthy

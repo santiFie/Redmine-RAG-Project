@@ -1,0 +1,139 @@
+{
+  "timestamp": "2026-09-08T21:05:39.610595",
+  "summary": {
+    "clarification_accuracy": 100.0,
+    "deduplication_f1": 100.0,
+    "deduplication_precision": 100.0,
+    "deduplication_recall": 100.0,
+    "project_routing_accuracy": 100.0
+  },
+  "subsystems": {
+    "clarification": {
+      "subsystem": "Clarificación y Solicitud de Información",
+      "total": 6,
+      "passed": 6,
+      "accuracy_pct": 100.0,
+      "details": [
+        {
+          "id": "clarif_vague_01",
+          "description": "Reporte extremadamente vago de fallo en checkout.",
+          "expected_route": "ask_clarification",
+          "actual_route": "ask_clarification",
+          "status": "PASSED"
+        },
+        {
+          "id": "clarif_vague_02",
+          "description": "Reporte vago sin pasos ni mensajes de error.",
+          "expected_route": "ask_clarification",
+          "actual_route": "ask_clarification",
+          "status": "PASSED"
+        },
+        {
+          "id": "clarif_complete_01",
+          "description": "Reporte completo de bug de backend con endpoint, status code, payload y stacktrace.",
+          "expected_route": "duplicate_and_rag_check",
+          "actual_route": "duplicate_and_rag_check",
+          "status": "PASSED"
+        },
+        {
+          "id": "clarif_complete_02",
+          "description": "Reporte frontend completo con pasos y entorno.",
+          "expected_route": "duplicate_and_rag_check",
+          "actual_route": "duplicate_and_rag_check",
+          "status": "PASSED"
+        },
+        {
+          "id": "clarif_infra_adaptive_01",
+          "description": "Incidente de infraestructura/producción: no debe exigir pasos manuales ni navegador.",
+          "expected_route": "duplicate_and_rag_check",
+          "actual_route": "duplicate_and_rag_check",
+          "status": "PASSED"
+        },
+        {
+          "id": "clarif_escape_hatch_01",
+          "description": "Escape hatch: el usuario no conoce más detalles técnicos tras la pregunta.",
+          "expected_route": "duplicate_and_rag_check",
+          "actual_route": "duplicate_and_rag_check",
+          "status": "PASSED"
+        }
+      ]
+    },
+    "deduplication": {
+      "subsystem": "Deduplicación y Triaje",
+      "total": 5,
+      "passed": 5,
+      "precision_pct": 100.0,
+      "recall_pct": 100.0,
+      "f1_score": 100.0,
+      "details": [
+        {
+          "id": "dedup_positive_01",
+          "description": "Duplicado exacto de ticket abierto: doble cobro por falta de idempotencia.",
+          "expected_is_duplicate": true,
+          "actual_route": "respond_existing",
+          "status": "PASSED"
+        },
+        {
+          "id": "dedup_positive_02",
+          "description": "Duplicado de incidente de infraestructura: OOMKilled en Celery workers.",
+          "expected_is_duplicate": true,
+          "actual_route": "respond_existing",
+          "status": "PASSED"
+        },
+        {
+          "id": "dedup_solved_01",
+          "description": "Problema con solución conocida documentada en ticket resuelto: error TLS en OpenVPN.",
+          "expected_is_duplicate": true,
+          "actual_route": "respond_existing",
+          "status": "PASSED"
+        },
+        {
+          "id": "dedup_false_positive_control_01",
+          "description": "Control negativo (NO duplicado): Mismo endpoint /api/v1/checkout pero causa distinta (cupón vs billing_address).",
+          "expected_is_duplicate": false,
+          "actual_route": "confirm_creation",
+          "status": "PASSED"
+        },
+        {
+          "id": "dedup_false_positive_control_02",
+          "description": "Control negativo (NO duplicado): Problema de red distinto al de Calico o MTU.",
+          "expected_is_duplicate": false,
+          "actual_route": "confirm_creation",
+          "status": "PASSED"
+        }
+      ]
+    },
+    "routing_and_creation": {
+      "subsystem": "Enrutamiento a Proyectos y Creación",
+      "total": 3,
+      "passed": 3,
+      "accuracy_pct": 100.0,
+      "details": [
+        {
+          "id": "route_project_infra",
+          "description": "Incidente de infraestructura debe enrutarse a infraestructura-de-servicios.",
+          "expected_project": "infraestructura-de-servicios",
+          "tracker": "Bug",
+          "priority": "Alta",
+          "status": "PASSED"
+        },
+        {
+          "id": "route_project_app",
+          "description": "Bug de aplicación/API debe enrutarse a proyecto-prueba.",
+          "expected_project": "proyecto-prueba",
+          "tracker": "Bug",
+          "priority": "Normal",
+          "status": "PASSED"
+        },
+        {
+          "id": "route_project_frontend",
+          "description": "Error visual o de interfaz de usuario debe enrutarse a proyecto-prueba.",
+          "expected_project": "proyecto-prueba",
+          "tracker": "Bug",
+          "priority": "Normal",
+          "status": "PASSED"
+        }
+      ]
+    }
+  }
+}
