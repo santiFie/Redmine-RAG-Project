@@ -7,7 +7,7 @@ PYTHON = $(VENV)/bin/python
 LANGGRAPH = $(VENV)/bin/langgraph
 PYTEST = $(VENV)/bin/pytest
 
-.PHONY: help install up build down docker-up docker-down dev index index-incremental test test-ragas serve-ragas mcp-build mcp-run mcp-test clean
+.PHONY: help install up build down docker-up docker-down dev seed-data index index-incremental test test-ragas serve-ragas test-agent-eval mcp-build mcp-run mcp-test clean
 
 help: ## Muestra este mensaje de ayuda
 	@echo "Comandos disponibles:"
@@ -37,12 +37,14 @@ dev: ## Inicia el servidor de desarrollo de LangGraph
 up: docker-up ## Levanta la infraestructura de Docker e inicia LangGraph Dev
 	@echo "Servicios Docker iniciados correctamente."
 	@echo "Iniciando servidor LangGraph Dev..."
-	# $(LANGGRAPH) dev --host 127.0.0.1 --port 8123 --allow-blocking
 
 build: 
 	@docker compose -f docker-compose.yml -f docker-compose.override.yml up --build
 
 down: docker-down ## Detiene los contenedores de Docker
+
+seed-data: ## Puebla Redmine con tickets técnicos realistas y los indexa en Qdrant/Postgres
+	$(PYTHON) src/redmine/generate_realistic_tickets.py --index
 
 index: ## Ejecuta la indexación completa inicial (Redmine → Qdrant)
 	$(PYTHON) -c "from src.jobs.indexer_job import run_sync; run_sync()"
@@ -52,6 +54,9 @@ index-incremental: ## Indexa solo issues modificados/creados en las últimas 24h
 
 test: ## Ejecuta la suite de pruebas con Pytest
 	$(PYTEST)
+
+test-agent-eval: ## Ejecuta la evaluación determinística del agente LangGraph (enrutamiento, deduplicación, clarificación)
+	$(PYTHON) -m src.evaluation.run_agent_eval --save-report
 
 test-ragas: ## Ejecuta la evaluación RAG con Ragas y levanta el servidor de resultados
 	$(PYTEST) -m ragas --log-cli-level=INFO
