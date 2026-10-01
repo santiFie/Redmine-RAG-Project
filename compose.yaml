@@ -1,0 +1,213 @@
+# ==============================================================================
+# Redmine + LangGraph RAG Enterprise Platform — Docker Compose (Producción / Evaluadores)
+# Archivo estándar compose.yaml para despliegue directo con imágenes de GHCR.
+# Uso: docker compose up -d
+# ==============================================================================
+
+name: redmine-rag-platform
+
+networks:
+  langgraph_net:
+    name: langgraph_net
+    driver: bridge
+
+volumes:
+  postgres_data:
+    name: redmine_postgres_data
+  redmine_files:
+    name: redmine_files
+  qdrant_storage:
+    name: qdrant_storage
+  langgraph_data:
+    name: langgraph_data
+  hf_cache:
+    name: hf_cache
+
+services:
+
+  # ----------------------------------------------------------------------------
+  # PostgreSQL 16 — Base de datos relacional para Redmine y Document Store
+  # ----------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: redmine_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${REDMINE_DB_NAME:-redmine}
+      POSTGRES_USER: ${REDMINE_DB_USER:-redmine}
+      POSTGRES_PASSWORD: ${REDMINE_DB_PASSWORD:-redmine_secret}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - langgraph_net
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${REDMINE_DB_USER:-redmine} -d ${REDMINE_DB_NAME:-redmine}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ----------------------------------------------------------------------------
+  # Redmine 5.1 — Gestor de proyectos e incidencias
+  # Acceso: http://localhost:3000 | Admin por defecto: admin / admin
+  # ----------------------------------------------------------------------------
+  redmine:
+    image: redmine:5.1-alpine
+    container_name: redmine_app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${REDMINE_PORT:-3000}:3000"
+    environment:
+      REDMINE_DB_POSTGRES: postgres
+      REDMINE_DB_PORT: 5432
+      REDMINE_DB_NAME: ${REDMINE_DB_NAME:-redmine}
+      REDMINE_DB_USERNAME: ${REDMINE_DB_USER:-redmine}
+      REDMINE_DB_PASSWORD: ${REDMINE_DB_PASSWORD:-redmine_secret}
+      REDMINE_SECRET_KEY_BASE: ${REDMINE_SECRET_KEY_BASE:-supersecretchangeme}
+    volumes:
+      - redmine_files:/usr/src/redmine/files
+    networks:
+      - langgraph_net
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:3000" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ----------------------------------------------------------------------------
+  # Qdrant — Base de datos vectorial para el motor RAG LlamaIndex
+  # REST API: http://localhost:6333 | Dashboard: http://localhost:6333/dashboard
+  # ----------------------------------------------------------------------------
+  qdrant:
+    image: qdrant/qdrant:v1.18.2
+    container_name: qdrant_vectordb
+    restart: unless-stopped
+    ports:
+      - "${QDRANT_HTTP_PORT:-6333}:6333"
+      - "${QDRANT_GRPC_PORT:-6334}:6334"
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    networks:
+      - langgraph_net
+    healthcheck:
+      test: [ "CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/6333' 2>/dev/null || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 20s
+
+  # ----------------------------------------------------------------------------
+  # LangGraph API — Servidor de orquestación y ejecución de agentes
+  # Puerto: 8123 | Healthcheck: http://localhost:8123/ok
+  # Imagen: GHCR preconstruida
+  # ----------------------------------------------------------------------------
+  langgraph-api:
+    image: ghcr.io/santifie/redmine-rag-project/langgraph_api:latest
+    container_name: langgraph_api_server
+    restart: unless-stopped
+    ports:
+      - "${LANGGRAPH_PORT:-8123}:8123"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    volumes:
+      - langgraph_data:/app/.langgraph_api
+      - hf_cache:/root/.cache/huggingface
+    environment:
+      POSTGRES_URI: postgresql://${REDMINE_DB_USER:-redmine}:${REDMINE_DB_PASSWORD:-redmine_secret}@postgres:5432/${REDMINE_DB_NAME:-redmine}
+      QDRANT_URL: http://qdrant:6333
+      REDMINE_URL: http://redmine:3000
+      REDMINE_HOST_URL: ${REDMINE_HOST_URL:-http://localhost:3000}
+      REDMINE_API_KEY: ${REDMINE_API_KEY:-supersecretkey}
+      HF_HOME: /root/.cache/huggingface
+      LLAMA_INDEX_CACHE_DIR: /root/.cache/huggingface
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      NVIDIA_API_KEY: ${NVIDIA_API_KEY:-}
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-local}
+      EMBED_MODEL: ${EMBED_MODEL:-BAAI/bge-m3}
+    networks:
+      - langgraph_net
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8123/ok" ]
+      interval: 30s
+      timeout: 15s
+      start_period: 60s
+      retries: 5
+
+  # ----------------------------------------------------------------------------
+  # BFF (Backend for Frontend) — FastAPI Gateway con JWT y SSE Streaming
+  # Puerto: 8000 | Docs: http://localhost:8000/docs
+  # Imagen: GHCR preconstruida
+  # ----------------------------------------------------------------------------
+  bff:
+    image: ghcr.io/santifie/redmine-rag-project/bff:latest
+    container_name: bff_server
+    restart: unless-stopped
+    ports:
+      - "${BFF_PORT:-8000}:8000"
+    depends_on:
+      langgraph-api:
+        condition: service_healthy
+    environment:
+      LANGGRAPH_API_URL: http://langgraph-api:8123
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:4200,http://localhost:80,http://localhost,http://ui:80}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-default_secret_key_change_in_prod}
+      REDMINE_URL: http://redmine:3000
+      REDMINE_API_KEY: ${REDMINE_API_KEY:-supersecretkey}
+    networks:
+      - langgraph_net
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
+      interval: 20s
+      timeout: 10s
+      start_period: 15s
+      retries: 3
+
+  # ----------------------------------------------------------------------------
+  # UI — Frontend Angular 18 servido por Nginx
+  # Puerto: 4200 (mapeado al 80 del contenedor)
+  # Imagen: GHCR preconstruida
+  # ----------------------------------------------------------------------------
+  ui:
+    image: ghcr.io/santifie/redmine-rag-project/ui:latest
+    container_name: ui_server
+    restart: unless-stopped
+    ports:
+      - "${UI_PORT:-4200}:80"
+    depends_on:
+      bff:
+        condition: service_healthy
+    networks:
+      - langgraph_net
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://127.0.0.1:80" ]
+      interval: 20s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+  # ----------------------------------------------------------------------------
+  # pgAdmin 4 — Administrador Web para PostgreSQL
+  # Puerto: 8282 | Acceso: http://localhost:8282
+  # ----------------------------------------------------------------------------
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin_app
+    restart: unless-stopped
+    ports:
+      - "${PGADMIN_PORT:-8282}:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@example.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - langgraph_net

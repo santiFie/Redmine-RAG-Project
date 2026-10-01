@@ -22,6 +22,10 @@ export interface ChatMessage {
   currentNode?: string;
   runId?: string;
   timestamp: Date;
+  /** Indica si ocurrió un error durante el procesamiento */
+  hasError?: boolean;
+  /** Mensaje amigable descriptivo del error */
+  errorMessage?: string;
 }
 
 @Component({
@@ -34,6 +38,7 @@ export interface ChatMessage {
 export class MessageBubbleComponent {
   @Input({ required: true }) message!: ChatMessage;
   @Output() feedback = new EventEmitter<{ runId: string, score: number, comment?: string, value?: string }>();
+  @Output() retry = new EventEmitter<void>();
 
   showFeedbackForm = false;
   feedbackCategory = '';
@@ -75,19 +80,18 @@ export class MessageBubbleComponent {
     return NODE_LABELS[this.message.currentNode] ?? this.message.currentNode;
   }
 
-  /** Renderiza el contenido: indicador de nodo durante streaming, Markdown al finalizar */
+  /** Renderiza el contenido: indicador de nodo si aún no hay tokens, Markdown si hay contenido */
   get renderedContent(): SafeHtml {
-    if (this.message.isStreaming && this.message.currentNode) {
-      const escaped = this.nodeLabel
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-      return this.sanitizer.bypassSecurityTrustHtml(
-        `<span class="node-status">${escaped}</span>`
-      );
-    }
-
     if (!this.message.content) {
+      if (this.message.isStreaming && this.message.currentNode) {
+        const escaped = this.nodeLabel
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+        return this.sanitizer.bypassSecurityTrustHtml(
+          `<span class="node-status">${escaped}</span>`
+        );
+      }
       return '';
     }
 

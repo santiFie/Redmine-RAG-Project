@@ -194,59 +194,104 @@ flowchart LR
 
 ---
 
-## 🚀 Quickstart & Setup
+## 🚀 Guía de Inicio Rápido y Despliegue (Quickstart)
 
-### Option A: Complete Stack via Docker Compose (Recommended)
+Existen dos modalidades principales para ejecutar la plataforma según el perfil de usuario:
 
-1. **Clone the repository:**
+---
+
+### Modalidad 1: Evaluadores y Usuarios Externos (Imágenes GHCR preconstruidas)
+
+Diseñada para evaluar o ejecutar la solución completa **sin necesidad de compilar código localmente** y sin requerir dependencias de Python o Node.js. 
+
+Utiliza el archivo estándar oficial `compose.yaml`, el cual descarga automáticamente las imágenes precompiladas y publicadas en **GitHub Container Registry (GHCR)**:
+* **BFF Gateway (FastAPI):** `ghcr.io/santifie/redmine-rag-project/bff:latest`
+* **Frontend UI (Angular 18):** `ghcr.io/santifie/redmine-rag-project/ui:latest`
+* **LangGraph API Server:** `ghcr.io/santifie/redmine-rag-project/langgraph_api:latest`
+* **Servicios Oficiales:** `postgres:16-alpine`, `redmine:5.1-alpine`, `qdrant/qdrant:v1.18.2`, `dpage/pgadmin4`.
+
+#### Pasos de Ejecución:
+
+1. **Clonar el repositorio (o descargar únicamente el archivo `compose.yaml`):**
    ```bash
    git clone https://github.com/santiFie/Redmine-RAG-Project.git
    cd Redmine-RAG-Project
    ```
 
-2. **Configure environment variables:**
+2. **(Opcional) Configurar credenciales de LLM en `.env`:**
    ```bash
    cp .env.example .env
-   # Add your GROQ_API_KEY and NVIDIA_API_KEY in .env
+   # Configure sus claves GROQ_API_KEY y NVIDIA_API_KEY si desea utilizar proveedores remotos
    ```
+   *Nota: Todas las variables poseen valores por defecto y fallbacks para funcionar de forma inmediata.*
 
-3. **Build and launch the full platform:**
+3. **Iniciar todo el sistema:**
    ```bash
-   docker compose up --build -d
+   docker compose up -d
    ```
-   *Services will be available at:*
-   * **Angular UI:** [http://localhost:4200](http://localhost:4200) (or port 80 in prod)
-   * **FastAPI BFF API Docs:** [http://localhost:8000/docs](http://localhost:8000/docs)
-   * **LangGraph Dev API:** [http://localhost:8123/docs](http://localhost:8123/docs)
-   * **Redmine:** [http://localhost:3000](http://localhost:3000) (admin / admin)
-   * **Qdrant Dashboard:** [http://localhost:6333/dashboard](http://localhost:6333/dashboard)
+   > Docker Compose seleccionará automáticamente el archivo estándar `compose.yaml` y desplegará todos los servicios coordinados con sus respectivos healthchecks y volúmenes persistentes.
 
-4. **Seed realistic test tickets & run initial indexing:**
+4. **Poblar datos de prueba iniciales (opcional):**
    ```bash
    make seed-data
    ```
 
+#### Servicios Disponibles:
+* 🌐 **Interfaz de Usuario (Angular UI):** [http://localhost:4200](http://localhost:4200)
+* 📡 **FastAPI BFF (Swagger Docs):** [http://localhost:8000/docs](http://localhost:8000/docs)
+* 🧠 **LangGraph API Server:** [http://localhost:8123/docs](http://localhost:8123/docs)
+* 📋 **Redmine 5.1:** [http://localhost:3000](http://localhost:3000) *(Credenciales por defecto: admin / admin)*
+* 🔍 **Dashboard de Qdrant:** [http://localhost:6333/dashboard](http://localhost:6333/dashboard)
+* 🐘 **pgAdmin 4:** [http://localhost:8282](http://localhost:8282) *(admin@example.com / admin)*
+
 ---
 
-### Option B: Local Python Development
+### Modalidad 2: Desarrolladores Internos (`make up-dev` / `make up-prod`)
 
-1. **Create and activate a virtual environment:**
+Para colaboradores del equipo que desarrollan activamente y modifican el código fuente. Los archivos `docker-compose.yml` y `docker-compose.override.yml` están configurados para uso interno y se encuentran en `.gitignore` para no interferir con las imágenes públicas.
+
+#### Flujos de Trabajo Disponibles:
+
+* **Modo Desarrollo Híbrido (`make up-dev`):**
+  Levanta en contenedores la infraestructura de respaldo (PostgreSQL, Redmine, Qdrant) y ejecuta en local el servidor de desarrollo de LangGraph con soporte de hot-reload y depuración directa:
+  ```bash
+  make up-dev
+  ```
+
+* **Modo Producción Local Recompilado (`make up-prod`):**
+  Construye y levanta la totalidad del stack de contenedores (incluyendo `langgraph-api`, `bff` y `ui`) a partir del código fuente local:
+  ```bash
+  make up-prod
+  ```
+
+* **Detener los servicios de desarrollo:**
+  ```bash
+  make docker-down
+  # o bien:
+  make down
+  ```
+
+---
+
+### Modalidad 3: Desarrollo Local en Python (Entorno Virtual)
+
+1. **Crear y activar el entorno virtual:**
    ```bash
    python3.12 -m venv .venv
    source .venv/bin/activate
    ```
 
-2. **Install dependencies and compatibility shims:**
+2. **Instalar dependencias y shims de compatibilidad:**
    ```bash
    make install
    ```
 
-3. **Start infrastructure backing services (PostgreSQL, Qdrant, Redmine):**
+3. **Iniciar únicamente los servicios de base de datos:**
    ```bash
    make docker-up
    ```
 
-4. **Start LangGraph Dev Server:**
+4. **Iniciar el servidor LangGraph en modo Dev:**
    ```bash
    make dev
    ```

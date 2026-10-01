@@ -33,7 +33,7 @@ export class ChatComponent implements OnInit, OnDestroy {
   protected readonly currentNode = signal<string | null>(null);
   protected readonly currentStreamingMsgId = signal<string | null>(null);
   protected readonly errorMsg = signal<string | null>(null);
-  protected inputText = '';
+  protected readonly inputText = signal('');
 
   /** Mapa msgId → tool steps para ese mensaje */
   private toolStepsMap = new Map<string, ToolStep[]>();
@@ -52,7 +52,7 @@ export class ChatComponent implements OnInit, OnDestroy {
   );
 
   protected readonly canSend = computed(() =>
-    !!this.inputText.trim() && !this.isStreaming()
+    !!this.inputText().trim() && !this.isStreaming()
   );
 
   protected readonly nodeLabel = computed(() =>
@@ -90,7 +90,7 @@ export class ChatComponent implements OnInit, OnDestroy {
   }
 
   protected sendSuggestion(text: string): void {
-    this.inputText = text;
+    this.inputText.set(text);
     this.sendMessage();
   }
 
@@ -104,8 +104,8 @@ export class ChatComponent implements OnInit, OnDestroy {
     this.errorMsg.set(null);
   }
 
-  protected sendMessage(): void {
-    const text = this.inputText.trim();
+  protected sendMessage(textToSend?: string): void {
+    const text = (textToSend !== undefined ? textToSend : this.inputText()).trim();
     if (!text || this.isStreaming()) return;
 
     // Agregar mensaje del usuario
@@ -116,8 +116,11 @@ export class ChatComponent implements OnInit, OnDestroy {
       timestamp: new Date(),
     };
     this.messages.update(msgs => [...msgs, userMsg]);
-    this.inputText = '';
+    if (textToSend === undefined) {
+      this.inputText.set('');
+    }
     this.autoResize();
+    this.errorMsg.set(null);
 
     // Preparar mensaje del asistente (se va a llenar con streaming)
     const assistantMsgId = crypto.randomUUID();
@@ -138,11 +141,48 @@ export class ChatComponent implements OnInit, OnDestroy {
     this.streamSub = this.chat.streamMessage(text, this.threadId()).subscribe({
       next: (event: ChatEvent) => this.handleEvent(event, assistantMsgId),
       error: (err) => {
-        this.errorMsg.set(`Error de conexión: ${err.message}`);
+        const errorText = err.message || 'Error de conexión con el servicio.';
+        this.markAssistantMessageError(assistantMsgId, errorText);
+        this.errorMsg.set(errorText);
         this.finalizeStreaming(assistantMsgId);
       },
       complete: () => this.finalizeStreaming(assistantMsgId),
     });
+  }
+
+  protected retryMessage(failedMsg: ChatMessage): void {
+    if (this.isStreaming()) return;
+    const msgs = this.messages();
+    const idx = msgs.findIndex(m => m.id === failedMsg.id);
+    if (idx > 0) {
+      for (let i = idx - 1; i >= 0; i--) {
+        if (msgs[i].role === 'user') {
+          this.sendMessage(msgs[i].content);
+          return;
+        }
+      }
+    }
+  }
+
+  private markAssistantMessageError(msgId: string, errorText: string): void {
+    const steps = this.toolStepsMap.get(msgId);
+    if (steps) {
+      for (const step of steps) {
+        if (!step.result) {
+          step.interrupted = true;
+        }
+      }
+      this.toolStepsMap = new Map(this.toolStepsMap);
+    }
+
+    this.messages.update(msgs =>
+      msgs.map(m => m.id === msgId ? {
+        ...m,
+        hasError: true,
+        errorMessage: errorText,
+        isStreaming: false,
+      } : m)
+    );
   }
 
   private handleEvent(event: ChatEvent, msgId: string): void {
@@ -189,16 +229,40 @@ export class ChatComponent implements OnInit, OnDestroy {
         this.finalizeStreaming(msgId, event.run_id);
         break;
 
-      case 'error':
-        this.errorMsg.set(event.message);
+      case 'error': {
+        const errorText = event.message || 'Ocurrió un error durante la ejecución del agente.';
+        this.markAssistantMessageError(msgId, errorText);
+        this.errorMsg.set(errorText);
         this.finalizeStreaming(msgId);
         break;
+      }
     }
   }
 
   private finalizeStreaming(msgId: string, runId?: string): void {
     this.messages.update(msgs =>
-      msgs.map(m => m.id === msgId ? { ...m, isStreaming: false, currentNode: undefined, runId: runId ?? m.runId } : m)
+      msgs.map(m => {
+        if (m.id === msgId) {
+          const content = m.content || '';
+          const isContentEmpty = !content.trim().length;
+          const hasError = !!m.hasError || isContentEmpty;
+          const errorMessage = m.errorMessage || (
+            isContentEmpty
+              ? 'No se recibió respuesta del modelo o el servicio finalizó con error.'
+              : undefined
+          );
+          return {
+            ...m,
+            content,
+            hasError,
+            errorMessage,
+            isStreaming: false,
+            currentNode: undefined,
+            runId: runId ?? m.runId,
+          };
+        }
+        return m;
+      })
     );
     this.isStreaming.set(false);
     this.currentStreamingMsgId.set(null);

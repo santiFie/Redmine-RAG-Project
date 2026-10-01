@@ -51,6 +51,9 @@ data/indices/
 
 # --- Docker ---
 .docker/
+# Archivos de Compose para desarrollo interno
+docker-compose.yml
+docker-compose.override.yml
 
 # --- IDEs ---
 .vscode/

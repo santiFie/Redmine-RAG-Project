@@ -103,12 +103,20 @@ export class ChatService {
       })
         .then(async (response) => {
           if (!response.ok) {
-            const error = await response.text();
-            subscriber.error(new Error(`BFF error ${response.status}: ${error}`));
+            let friendlyMessage = 'No se pudo conectar con el servicio del agente.';
+            if (response.status === 401) {
+              friendlyMessage = 'Tu sesión ha expirado o no es válida. Por favor, iniciá sesión nuevamente.';
+            } else if (response.status === 503) {
+              friendlyMessage = 'El servicio de procesamiento de consultas no está disponible temporalmente. Verificá que los servicios estén activos.';
+            } else if (response.status >= 500) {
+              friendlyMessage = 'Ocurrió un error interno en el servidor al procesar la solicitud.';
+            }
+
+            subscriber.error(new Error(friendlyMessage));
             return;
           }
           if (!response.body) {
-            subscriber.error(new Error('No response body'));
+            subscriber.error(new Error('No se recibió respuesta del servidor.'));
             return;
           }
 
@@ -137,7 +145,11 @@ export class ChatService {
         })
         .catch((err) => {
           if (err.name !== 'AbortError') {
-            subscriber.error(err);
+            const isNetworkError = err instanceof TypeError || err.message?.includes('Failed to fetch');
+            const msg = isNetworkError
+              ? 'No se pudo establecer conexión con el servidor. Verificá tu red o que los servicios estén en ejecución.'
+              : (err.message || 'Error inesperado de comunicación.');
+            subscriber.error(new Error(msg));
           }
         });
 
@@ -225,8 +237,12 @@ export class ChatService {
           return { type: 'tool_result', tool_call_id: data.tool_call_id, name: data.name, content: data.content };
         case 'node_start':
           return { type: 'node_start', node: data.node };
-        case 'error':
-          return { type: 'error', message: data.message };
+        case 'error': {
+          const errDetail = typeof data === 'object' && data !== null
+            ? (data.message || data.error || data.detail || 'Ocurrió un error en el servicio.')
+            : String(data);
+          return { type: 'error', message: errDetail };
+        }
         case 'done':
           return { type: 'done', thread_id: data.thread_id, run_id: data.run_id };
         default:

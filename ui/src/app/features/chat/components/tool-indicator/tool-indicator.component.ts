@@ -23,6 +23,7 @@ export interface ToolStep {
   result?: ToolResultEvent;
   durationMs?: number;
   startTime: number;
+  interrupted?: boolean;
 }
 
 @Component({

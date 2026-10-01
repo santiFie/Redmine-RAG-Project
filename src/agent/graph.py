@@ -332,7 +332,7 @@ async def respond_general_node(state: State) -> State:
     Responde a intenciones generales (saludos, preguntas simples)
     sin necesidad de RAG ni Redmine.
     """
-    llm = get_llm("nvidia", "deepseek-ai/deepseek-v4-flash-0731", 0.5)
+    llm = get_llm("nvidia", "deepseek-ai/deepseek-v4.1-flash", 0.5)
 
     prompt = await aget_prompt("respond-general")
     sys_msg = prompt.format_messages()[0]
@@ -387,7 +387,7 @@ async def output_guardrail_node(state: State) -> State:
 async def qa_evaluator_node(state: State) -> State:
     user_input = state["user_input"]
 
-    llm = get_llm("nvidia", "deepseek-ai/deepseek-v4-flash-0731", 0.1)
+    llm = get_llm("nvidia", "deepseek-ai/deepseek-v4.1-flash", 0.1)
     structured_llm = llm.with_structured_output(BugReportExtraction)
 
     prompt = await aget_prompt("qa-evaluator")
@@ -424,7 +424,7 @@ async def ask_clarification_node(state: State) -> dict[str, Any]:
         f"Puntos o preguntas a clarificar:\n{formatted_items}"
     )
 
-    llm = get_llm("nvidia", "deepseek-ai/deepseek-v4-flash-0731", 0.1)
+    llm = get_llm("nvidia", "deepseek-ai/deepseek-v4.1-flash", 0.1)
 
     prompt = await aget_prompt("ask-clarification")
     messages = prompt.format_messages(missing_fields=contextual_missing)
@@ -523,7 +523,7 @@ async def duplicate_and_rag_check_node(state: State) -> dict[str, Any]:
         projects_text = f"- ID/Identifier: '{default_proj}' | Nombre: 'Proyecto por defecto'"
 
     # 3. Evaluar duplicados y deducir proyecto con LLM
-    llm = get_llm("nvidia", "deepseek-ai/deepseek-v4-flash-0731", 0.1)
+    llm = get_llm("nvidia", "deepseek-ai/deepseek-v4.1-flash", 0.1)
     structured_llm = llm.with_structured_output(DuplicateCheckResult)
 
     prompt_template = await aget_prompt("triage-duplicate-check")

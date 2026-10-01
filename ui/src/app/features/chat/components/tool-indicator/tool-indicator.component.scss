@@ -79,6 +79,11 @@
   animation: pulse 1.5s ease-in-out infinite;
 }
 
+.tool-interrupted {
+  font-size: var(--font-size-xs);
+  color: #F59E0B;
+}
+
 .tool-chevron {
   flex-shrink: 0;
   color: var(--color-text-muted);

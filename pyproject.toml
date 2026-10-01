@@ -91,6 +91,7 @@ include = ["src*"]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+extend-exclude = ["*.md"]
 
 [tool.ruff.lint]
 # Reglas básicas: errores (E), advertencias estándar (W) y pyflakes (F)

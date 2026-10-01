@@ -1,6 +1,6 @@
-<div class="message-bubble" [class.user]="message.role === 'user'" [class.assistant]="message.role === 'assistant'">
+<div class="message-bubble" [class.user]="message.role === 'user'" [class.assistant]="message.role === 'assistant'" [class.has-error]="message.hasError">
   <!-- Avatar -->
-  <div class="avatar" [class.avatar--user]="message.role === 'user'">
+  <div class="avatar" [class.avatar--user]="message.role === 'user'" [class.avatar--error]="message.hasError">
     @if (message.role === 'assistant') {
       <svg width="18" height="18" viewBox="0 0 32 32" fill="none">
         <path d="M16 2L30 9V23L16 30L2 23V9L16 2Z" fill="url(#g2)" />
@@ -23,19 +23,50 @@
 
   <!-- Contenido -->
   <div class="bubble-body">
-    <div class="bubble-content" [class.markdown-content]="message.role === 'assistant' && !message.isStreaming"
-         [class.streaming-status]="message.isStreaming && message.role === 'assistant'">
-      <span [innerHTML]="renderedContent"></span>
-      @if (message.isStreaming) {
-        <span class="typing-cursor" aria-hidden="true"></span>
-      }
-    </div>
+    @if (message.content || message.isStreaming) {
+      <div class="bubble-content" [class.markdown-content]="message.role === 'assistant' && !message.isStreaming"
+           [class.streaming-status]="message.isStreaming && message.role === 'assistant'">
+        <span [innerHTML]="renderedContent"></span>
+        @if (message.isStreaming) {
+          <span class="typing-cursor" aria-hidden="true"></span>
+        }
+      </div>
+    }
+
+    <!-- Estado de error amigable -->
+    @if (message.hasError) {
+      <div class="error-notice animate-fade-slide-up">
+        <div class="error-notice-header">
+          <svg class="error-notice-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <span class="error-notice-title">
+            {{ message.content ? 'Respuesta interrumpida' : 'No se pudo generar la respuesta' }}
+          </span>
+        </div>
+        <p class="error-notice-desc">
+          {{ message.errorMessage || 'Ocurrió un problema al procesar tu solicitud. Por favor, intentá nuevamente.' }}
+        </p>
+        <div class="error-actions">
+          <button class="btn-retry" (click)="retry.emit()" type="button" title="Volver a enviar la consulta">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="23 4 23 10 17 10" />
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+            </svg>
+            Reintentar
+          </button>
+        </div>
+      </div>
+    }
+
     @if (!message.isStreaming) {
       <div class="bubble-meta">
         {{ formatTime(message.timestamp) }}
       </div>
       
-      @if (message.role === 'assistant' && message.runId) {
+      @if (message.role === 'assistant' && message.runId && !message.hasError && message.content.trim().length > 0) {
         <div class="feedback-actions">
           @if (!feedbackSubmitted && !showFeedbackForm) {
             <button class="feedback-btn" (click)="onThumbsUp()" title="Buena respuesta">👍</button>

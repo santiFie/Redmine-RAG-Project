@@ -285,3 +285,81 @@
     &:hover { filter: brightness(1.1); }
   }
 }
+
+/* Avatar de error */
+.avatar--error {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: var(--color-accent-error);
+}
+
+/* ── Tarjeta de error amigable ── */
+.error-notice {
+  margin-top: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  animation: fadeSlideUp 0.25s ease both;
+}
+
+.error-notice-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: #F87171;
+}
+
+.error-notice-icon {
+  flex-shrink: 0;
+}
+
+.error-notice-title {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: #FCA5A5;
+}
+
+.error-notice-desc {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.error-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+
+.btn-retry {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-md);
+  color: #FCA5A5;
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+
+  &:hover {
+    background: rgba(239, 68, 68, 0.25);
+    border-color: rgba(239, 68, 68, 0.5);
+    color: white;
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+

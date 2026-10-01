@@ -19,6 +19,7 @@ Protocolo SSE (eventos tipados):
 """
 
 import json
+import logging
 from collections.abc import AsyncGenerator
 from typing import Any
 
@@ -32,6 +33,7 @@ from app.config import settings
 from app.dependencies import get_current_user
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
+logger = logging.getLogger("bff.chat")
 
 
 # ---------------------------------------------------------------------------
@@ -123,6 +125,10 @@ class LangGraphStreamProcessor:
         self.seen_lengths: dict[str, int] = {}
         self.message_nodes: dict[str, str] = {}
         self.captured_run_id: str | None = None
+        self.has_error: bool = False
+        self.error_message: str | None = None
+        self.error_emitted: bool = False
+        self.tokens_emitted: int = 0
 
     def process_chunk(self, event_type: str, data: Any) -> list[str]:
         """Despacha el evento al handler correspondiente según el tipo de evento."""
@@ -137,12 +143,40 @@ class LangGraphStreamProcessor:
                 return self._handle_updates(data)
             case "messages/complete":
                 return self._handle_messages_complete(data)
+            case "error":
+                return self._handle_error(data)
             case _:
                 return []
 
+    def _handle_error(self, data: Any) -> list[str]:
+        self.has_error = True
+        msg = "Error durante la ejecución del agente."
+        if isinstance(data, dict):
+            msg = data.get("message") or data.get("error") or data.get("detail") or str(data)
+        elif data:
+            msg = str(data)
+        self.error_message = msg
+        self.error_emitted = True
+        logger.error("Error emitido por LangGraph stream: %s", msg)
+        return [_sse("error", {"message": msg})]
+
     def _handle_metadata(self, data: Any) -> list[str]:
-        if isinstance(data, dict) and "run_id" in data:
+        if not isinstance(data, dict):
+            return []
+        if "run_id" in data:
             self.captured_run_id = data["run_id"]
+        if data.get("status") == "error" or "error" in data:
+            err = data.get("error", "Error en la ejecución del grafo")
+            msg = (
+                (err.get("message") or err.get("error") or str(err))
+                if isinstance(err, dict)
+                else str(err)
+            )
+            self.has_error = True
+            self.error_message = msg
+            self.error_emitted = True
+            logger.error("Error detectado en metadata de LangGraph: %s", msg)
+            return [_sse("error", {"message": msg})]
         return []
 
     def _handle_messages_metadata(self, data: Any) -> list[str]:
@@ -174,17 +208,30 @@ class LangGraphStreamProcessor:
                 if len(content) > last_len:
                     delta = content[last_len:]
                     self.seen_lengths[msg_id] = len(content)
+                    self.tokens_emitted += len(delta)
                     events.append(_sse("token", {"text": delta}))
         return events
 
     def _handle_updates(self, data: Any) -> list[str]:
         if not isinstance(data, dict):
             return []
-        return [
-            event
-            for node_name, update in data.items()
-            for event in self._process_single_node_update(node_name, update)
-        ]
+        events: list[str] = []
+        for node_name, update in data.items():
+            if node_name == "__error__" or (isinstance(update, dict) and "error" in update):
+                err = update.get("error", update) if isinstance(update, dict) else update
+                msg = (
+                    (err.get("message") or err.get("error") or str(err))
+                    if isinstance(err, dict)
+                    else str(err)
+                )
+                self.has_error = True
+                self.error_message = msg
+                self.error_emitted = True
+                logger.error("Error en update de LangGraph (nodo %s): %s", node_name, msg)
+                events.append(_sse("error", {"message": msg}))
+            else:
+                events.extend(self._process_single_node_update(node_name, update))
+        return events
 
     def _process_single_node_update(self, node_name: str, update: Any) -> list[str]:
         events: list[str] = []
@@ -274,8 +321,18 @@ async def _stream_langgraph(
             for sse_event in processor.process_chunk(chunk.event, chunk.data):
                 yield sse_event
 
+        if processor.has_error and not processor.error_emitted:
+            yield _sse(
+                "error",
+                {"message": processor.error_message or "Error durante la ejecución del agente."},
+            )
+
     except Exception as exc:
-        yield _sse("error", {"message": str(exc)})
+        logger.exception("Error durante la ejecución del streaming en LangGraph: %s", exc)
+        processor.has_error = True
+        processor.error_message = f"Ocurrió un error durante la ejecución del agente: {exc}"
+        processor.error_emitted = True
+        yield _sse("error", {"message": processor.error_message})
     finally:
         yield processor.build_done_event()
 

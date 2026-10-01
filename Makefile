@@ -7,7 +7,7 @@ PYTHON = $(VENV)/bin/python
 LANGGRAPH = $(VENV)/bin/langgraph
 PYTEST = $(VENV)/bin/pytest
 
-.PHONY: help install up build down docker-up docker-down dev seed-data index index-incremental test test-ragas serve-ragas test-agent-eval mcp-build mcp-run mcp-test clean
+.PHONY: help install up up-dev up-prod make-up-prod build down docker-up docker-down dev seed-data index index-incremental test test-ragas serve-ragas test-agent-eval mcp-build mcp-run mcp-test clean
 
 help: ## Muestra este mensaje de ayuda
 	@echo "Comandos disponibles:"
@@ -22,26 +22,35 @@ install: ## Instala dependencias y configura shims de compatibilidad (Ragas/Vert
 	open(f, 'w').write('try:\n    from langchain_google_vertexai import ChatVertexAI\nexcept ImportError:\n    class ChatVertexAI: pass\n__all__ = [\"ChatVertexAI\"]\n'); \
 	print('Shim VertexAI configurado en:', f)"
 
+# ── Modos de Arranque de la Aplicación ───────────────────────────────────────
+
+up-dev: ## Levanta todos los servicios dockerizados de infraestructura menos LangGraph (que se ejecuta en local)
+	@echo "Levantando infraestructura Docker (PostgreSQL, Redmine, Qdrant)..."
+	@docker compose -f docker-compose.yml up -d
+	@echo "Iniciando servidor LangGraph Dev en local..."
+	@$(LANGGRAPH) dev --host 127.0.0.1 --port 8123
+
+up-prod: ## Levanta absolutamente todos los servicios dockerizados (langgraph-api, bff, ui, postgres, redmine, qdrant) con rebuild (--build)
+	@echo "Levantando todos los servicios en Docker con rebuild forzado (--build)..."
+	@docker compose -f docker-compose.yml -f docker-compose.override.yml up --build -d
+
+make-up-prod: up-prod ## Alias de up-prod para levantar todos los servicios dockerizados
+
+dev: up-dev ## Alias de up-dev (modo desarrollo)
+
+up: up-dev ## Alias predeterminado para levantar el entorno de desarrollo
+
 docker-up: ## Levanta la infraestructura de Docker (PostgreSQL, Redmine, Qdrant)
 	docker compose up -d
 
 docker-down: ## Detiene la infraestructura de Docker
 	docker compose stop
 
-dev: ## Inicia el servidor de desarrollo de LangGraph
-	@echo "Levantando infraestructura Docker..."
-	@docker compose -f 'docker-compose.yml' up -d
-	@echo "Iniciando servidor LangGraph Dev..."
-	@$(LANGGRAPH) dev --host 127.0.0.1 --port 8123
-
-up: docker-up ## Levanta la infraestructura de Docker e inicia LangGraph Dev
-	@echo "Servicios Docker iniciados correctamente."
-	@echo "Iniciando servidor LangGraph Dev..."
-
-build: 
+build: ## Reconstruye y levanta todos los contenedores de Docker
 	@docker compose -f docker-compose.yml -f docker-compose.override.yml up --build
 
-down: docker-down ## Detiene los contenedores de Docker
+down: ## Detiene los contenedores de Docker
+	@docker compose -f docker-compose.yml -f docker-compose.override.yml down
 
 seed-data: ## Puebla Redmine con tickets técnicos realistas y los indexa en Qdrant/Postgres
 	$(PYTHON) src/redmine/generate_realistic_tickets.py --index

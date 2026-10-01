@@ -7,10 +7,16 @@
     type="button"
   >
     <!-- Ícono de estado -->
-    <span class="tool-status-icon" [class.spinning]="!step.result">
+    <span class="tool-status-icon" [class.spinning]="!step.result && !step.interrupted" [class.interrupted]="step.interrupted">
       @if (step.result) {
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <polyline points="20 6 9 17 4 12"/>
+        </svg>
+      } @else if (step.interrupted) {
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="12" y1="8" x2="12" y2="12"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
         </svg>
       } @else {
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="animate-spin">
@@ -25,6 +31,8 @@
       <span class="tool-name">{{ getLabel() }}</span>
       @if (step.result) {
         <span class="tool-duration">{{ getDuration() }}</span>
+      } @else if (step.interrupted) {
+        <span class="tool-interrupted">interrumpido</span>
       } @else {
         <span class="tool-running">ejecutando…</span>
       }
