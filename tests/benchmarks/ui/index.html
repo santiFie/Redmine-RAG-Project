@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard de Benchmarking - Decision Models</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --card-border: #334155;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --success: #10b981;
+      --success-bg: rgba(16, 185, 129, 0.15);
+      --danger: #ef4444;
+      --danger-bg: rgba(239, 68, 68, 0.15);
+      --warning: #f59e0b;
+      --warning-bg: rgba(245, 158, 11, 0.15);
+      --purple: #8b5cf6;
+      --purple-bg: rgba(139, 92, 246, 0.15);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); padding: 24px; min-height: 100vh; }
+    
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid var(--card-border); }
+    h1 { font-size: 1.5rem; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 10px; }
+    .badge-sub { font-size: 0.75rem; background: var(--purple-bg); color: var(--purple); border: 1px solid var(--purple); padding: 2px 8px; border-radius: 9999px; }
+    
+    .header-actions { display: flex; gap: 12px; align-items: center; }
+    .btn { background: var(--primary); color: #fff; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.875rem; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; transition: background 0.2s; }
+    .btn:hover { background: var(--primary-hover); }
+    .btn-secondary { background: #334155; color: #f8fafc; }
+    .btn-secondary:hover { background: #475569; }
+    .btn-success { background: var(--success); }
+    .btn-success:hover { background: #059669; }
+
+    /* KPI Cards */
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .kpi-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 8px; padding: 16px; }
+    .kpi-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .model-title { font-size: 0.95rem; font-weight: 600; color: #fff; }
+    .status-badge { font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; font-weight: bold; }
+    .status-online { background: var(--success-bg); color: var(--success); border: 1px solid var(--success); }
+    .status-offline { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger); }
+    
+    .kpi-metric-row { display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 6px; color: var(--text-muted); }
+    .kpi-metric-val { font-weight: 600; color: var(--text); }
+    
+    /* Navigation Tabs */
+    .tabs { display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid var(--card-border); }
+    .tab-btn { background: transparent; color: var(--text-muted); border: none; padding: 10px 18px; cursor: pointer; font-size: 0.95rem; font-weight: 500; border-bottom: 2px solid transparent; }
+    .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+    /* Filters Bar */
+    .filters-bar { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 8px; padding: 14px 18px; margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+    .filter-item { display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--text-muted); }
+    .filter-item input[type="text"], .filter-item select { background: #0f172a; border: 1px solid var(--card-border); color: #fff; padding: 6px 12px; border-radius: 6px; font-size: 0.85rem; }
+    .filter-checkbox { display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 0.85rem; color: #f8fafc; }
+
+    /* Table Styles */
+    .table-container { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 8px; overflow-x: auto; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+    table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem; }
+    th { background: #1a2234; padding: 12px 14px; font-weight: 600; color: var(--text-muted); border-bottom: 1px solid var(--card-border); }
+    td { padding: 12px 14px; border-bottom: 1px solid var(--card-border); vertical-align: middle; }
+    tr:hover td { background-color: rgba(255, 255, 255, 0.02); cursor: pointer; }
+    
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; text-align: center; }
+    .badge-true { background: var(--success-bg); color: var(--success); border: 1px solid var(--success); }
+    .badge-false { background: var(--danger-bg); color: var(--danger); border: 1px solid var(--danger); }
+    .badge-knowledge { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid #3b82f6; }
+    .badge-incident { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid #f59e0b; }
+    .badge-general { background: rgba(139, 92, 246, 0.15); color: #c084fc; border: 1px solid #8b5cf6; }
+    .badge-diff-clear { background: #334155; color: #cbd5e1; }
+    .badge-diff-boundary { background: rgba(234, 179, 8, 0.15); color: #facc15; border: 1px solid #ca8a04; }
+
+    .score-bar { width: 60px; height: 6px; background: #334155; border-radius: 3px; overflow: hidden; display: inline-block; vertical-align: middle; margin-left: 6px; }
+    .score-fill { height: 100%; background: var(--primary); }
+    .latency-tag { font-size: 0.7rem; color: var(--text-muted); margin-top: 2px; }
+
+    /* Modal */
+    .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.7); display: none; justify-content: center; align-items: center; z-index: 1000; padding: 20px; }
+    .modal-content { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 12px; width: 100%; max-width: 850px; max-height: 90vh; overflow-y: auto; padding: 24px; position: relative; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--card-border); padding-bottom: 12px; }
+    .modal-title { font-size: 1.25rem; font-weight: 700; color: #fff; }
+    .modal-close { background: transparent; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; }
+    .modal-close:hover { color: #fff; }
+    
+    .detail-section { margin-bottom: 18px; }
+    .detail-label { font-size: 0.8rem; text-transform: uppercase; color: var(--text-muted); font-weight: 600; margin-bottom: 4px; }
+    .detail-box { background: #0f172a; border: 1px solid var(--card-border); border-radius: 6px; padding: 12px; font-size: 0.9rem; line-height: 1.5; }
+    
+    .model-detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: 10px; }
+    .model-detail-card { background: #0f172a; border: 1px solid var(--card-border); border-radius: 6px; padding: 12px; font-size: 0.85rem; }
+    
+    .human-review-panel { background: rgba(59, 130, 246, 0.05); border: 1px dashed var(--primary); border-radius: 8px; padding: 16px; margin-top: 20px; }
+    .human-review-panel h3 { font-size: 1rem; color: #60a5fa; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div>
+      <h1>
+        🧪 Benchmark de Decision Models
+        <span class="badge-sub">Issue #12</span>
+      </h1>
+      <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 4px;" id="metaInfo">
+        Cargando datos del benchmark...
+      </p>
+    </div>
+    <div class="header-actions">
+      <input type="file" id="jsonFileInput" accept=".json" style="display: none;">
+      <button class="btn btn-secondary" onclick="document.getElementById('jsonFileInput').click()">
+        📁 Cargar JSON
+      </button>
+      <button class="btn btn-success" onclick="exportHumanAudit()">
+        💾 Exportar Dictamen Humano
+      </button>
+    </div>
+  </header>
+
+  <!-- KPI Cards Container -->
+  <div class="kpi-grid" id="kpiGrid"></div>
+
+  <!-- Tabs Navigation -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('safe_query')">🛡️ Safe Query (Seguridad)</button>
+    <button class="tab-btn" onclick="switchTab('intent')">🎯 Intent (Clasificación de Intención)</button>
+  </div>
+
+  <!-- Filters Bar -->
+  <div class="filters-bar">
+    <div class="filter-item">
+      <label>Buscar:</label>
+      <input type="text" id="searchInput" placeholder="Filtrar por texto o ID..." oninput="applyFilters()">
+    </div>
+    <div class="filter-item">
+      <label>Dificultad:</label>
+      <select id="difficultySelect" onchange="applyFilters()">
+        <option value="all">Todas</option>
+        <option value="clear">Claros (Clear)</option>
+        <option value="boundary">Frontera (Boundary)</option>
+      </select>
+    </div>
+    <div class="filter-item">
+      <label>Categoría:</label>
+      <select id="categorySelect" onchange="applyFilters()">
+        <option value="all">Todas las categorías</option>
+      </select>
+    </div>
+    <div class="filter-item">
+      <label class="filter-checkbox">
+        <input type="checkbox" id="discrepancyCheckbox" onchange="applyFilters()">
+        ⚠️ Solo discrepancias (Fallas o diferencias)
+      </label>
+    </div>
+  </div>
+
+  <!-- Table Container -->
+  <div class="table-container">
+    <table id="dataTable">
+      <thead id="tableHead"></thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+
+  <!-- Detail Modal -->
+  <div class="modal-overlay" id="detailModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title" id="modalCaseId">Detalle del Caso</h2>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-label">Input del Usuario</div>
+        <div class="detail-box" id="modalUserInput"></div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-label">Ground Truth & Rationale</div>
+        <div class="detail-box" id="modalGroundTruth"></div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-label">Respuestas de los Modelos de Decisión</div>
+        <div class="model-detail-grid" id="modalModelGrid"></div>
+      </div>
+
+      <!-- Human in the Loop Voting Panel -->
+      <div class="human-review-panel">
+        <h3>👤 Auditoría y Veredicto Humano</h3>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">
+          Selecciona cuál modelo ofreció el mejor veredicto para este caso de uso y documenta tus observaciones técnicas.
+        </p>
+        <div style="display: flex; gap: 12px; margin-bottom: 10px; flex-wrap: wrap;">
+          <select id="humanModelChoice" style="background: #0f172a; color: #fff; border: 1px solid var(--card-border); padding: 8px; border-radius: 6px; font-size: 0.85rem; flex: 1;">
+            <option value="">-- Seleccionar Modelo Ganador --</option>
+          </select>
+          <select id="humanVerdictTag" style="background: #0f172a; color: #fff; border: 1px solid var(--card-border); padding: 8px; border-radius: 6px; font-size: 0.85rem; flex: 1;">
+            <option value="optimo">Decisión Óptima</option>
+            <option value="aceptable">Aceptable pero con dudas</option>
+            <option value="inaceptable">Inaceptable para producción</option>
+          </select>
+        </div>
+        <textarea id="humanNotes" rows="2" placeholder="Notas de auditoría humana..." style="width: 100%; background: #0f172a; color: #fff; border: 1px solid var(--card-border); border-radius: 6px; padding: 8px; font-size: 0.85rem; margin-bottom: 8px;"></textarea>
+        <button class="btn btn-primary" style="font-size: 0.8rem; padding: 6px 12px;" onclick="saveHumanVerdict()">
+          Guardar Decisión de Caso
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let benchmarkData = null;
+    let activeTab = 'safe_query';
+    let humanAuditStore = {};
+    let currentModalCase = null;
+
+    // Inicialización: Cargar JSON desde ruta estándar o esperar upload
+    window.addEventListener('DOMContentLoaded', () => {
+      fetch('../results/decision_benchmark_results.json')
+        .then(res => {
+          if (!res.ok) throw new Error('No local results file');
+          return res.json();
+        })
+        .then(data => loadData(data))
+        .catch(() => {
+          document.getElementById('metaInfo').textContent = 'Esperando carga de archivo JSON (usa el botón "Cargar JSON").';
+        });
+
+      document.getElementById('jsonFileInput').addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+          try {
+            const parsed = JSON.parse(evt.target.result);
+            loadData(parsed);
+          } catch (err) {
+            alert('Error al parsear archivo JSON: ' + err.message);
+          }
+        };
+        reader.readAsText(file);
+      });
+    });
+
+    function loadData(data) {
+      benchmarkData = data;
+      renderMeta();
+      renderKPIs();
+      populateCategories();
+      populateHumanModelChoices();
+      renderTable();
+    }
+
+    function renderMeta() {
+      const meta = benchmarkData.metadata || {};
+      const timeStr = meta.timestamp ? new Date(meta.timestamp).toLocaleString() : 'N/A';
+      document.getElementById('metaInfo').innerHTML = `
+        Corrida: <strong>${timeStr}</strong> | 
+        Modo: <strong>${meta.smoke_mode ? 'SMOKE TEST' : 'COMPLETO'}</strong> | 
+        Total Casos: <strong>${(meta.total_safe_cases || 0) + (meta.total_intent_cases || 0)}</strong> | 
+        Modelos: <strong>${(meta.models_evaluated || []).length}</strong>
+      `;
+    }
+
+    function renderKPIs() {
+      const grid = document.getElementById('kpiGrid');
+      grid.innerHTML = '';
+      const summary = benchmarkData.models_summary || {};
+
+      for (const [key, stats] of Object.entries(summary)) {
+        const card = document.createElement('div');
+        card.className = 'kpi-card';
+        const isOnline = stats.online_status === 'online';
+        
+        const safeAcc = Math.round((stats.safe_query?.accuracy_overall || 0) * 100);
+        const intentAcc = Math.round((stats.intent?.accuracy_overall || 0) * 100);
+        const meanLat = stats.latency_ms?.mean || 0;
+
+        card.innerHTML = `
+          <div class="kpi-card-header">
+            <span class="model-title">${stats.display_name}</span>
+            <span class="status-badge ${isOnline ? 'status-online' : 'status-offline'}">${stats.online_status}</span>
+          </div>
+          <div class="kpi-metric-row">
+            <span>Proveedor:</span>
+            <span class="kpi-metric-val">${stats.provider.toUpperCase()}</span>
+          </div>
+          <div class="kpi-metric-row">
+            <span>Exactitud Safe:</span>
+            <span class="kpi-metric-val" style="color: ${safeAcc >= 80 ? 'var(--success)' : 'var(--danger)'}">${safeAcc}%</span>
+          </div>
+          <div class="kpi-metric-row">
+            <span>Exactitud Intent:</span>
+            <span class="kpi-metric-val" style="color: ${intentAcc >= 80 ? 'var(--success)' : 'var(--danger)'}">${intentAcc}%</span>
+          </div>
+          <div class="kpi-metric-row">
+            <span>Latencia Media:</span>
+            <span class="kpi-metric-val">${meanLat} ms</span>
+          </div>
+        `;
+        grid.appendChild(card);
+      }
+    }
+
+    function switchTab(tab) {
+      activeTab = tab;
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+      populateCategories();
+      renderTable();
+    }
+
+    function populateCategories() {
+      const select = document.getElementById('categorySelect');
+      select.innerHTML = '<option value="all">Todas las categorías</option>';
+      if (!benchmarkData) return;
+
+      const cases = activeTab === 'safe_query' ? benchmarkData.safe_query_results : benchmarkData.intent_results;
+      const cats = new Set(cases.map(c => c.case_info.category).filter(Boolean));
+      cats.forEach(cat => {
+        const opt = document.createElement('option');
+        opt.value = cat;
+        opt.textContent = cat;
+        select.appendChild(opt);
+      });
+    }
+
+    function populateHumanModelChoices() {
+      const select = document.getElementById('humanModelChoice');
+      select.innerHTML = '<option value="">-- Seleccionar Modelo Ganador --</option>';
+      if (!benchmarkData || !benchmarkData.models_summary) return;
+
+      for (const [key, stats] of Object.entries(benchmarkData.models_summary)) {
+        const opt = document.createElement('option');
+        opt.value = key;
+        opt.textContent = stats.display_name;
+        select.appendChild(opt);
+      }
+    }
+
+    function renderTable() {
+      if (!benchmarkData) return;
+
+      const thead = document.getElementById('tableHead');
+      const tbody = document.getElementById('tableBody');
+      const cases = activeTab === 'safe_query' ? benchmarkData.safe_query_results : benchmarkData.intent_results;
+      const models = Object.keys(benchmarkData.models_summary || {});
+
+      // Encabezados
+      let headHtml = `
+        <tr>
+          <th style="width: 100px;">ID / Tipo</th>
+          <th style="width: 35%;">Input del Usuario</th>
+          <th style="width: 120px;">Ground Truth</th>
+      `;
+      models.forEach(m => {
+        const dName = benchmarkData.models_summary[m]?.display_name || m;
+        headHtml += `<th>${dName}</th>`;
+      });
+      headHtml += `</tr>`;
+      thead.innerHTML = headHtml;
+
+      // Filtros
+      const searchTxt = document.getElementById('searchInput').value.toLowerCase().trim();
+      const diffFilter = document.getElementById('difficultySelect').value;
+      const catFilter = document.getElementById('categorySelect').value;
+      const onlyDiscrepancies = document.getElementById('discrepancyCheckbox').checked;
+
+      tbody.innerHTML = '';
+
+      cases.forEach(item => {
+        const c = item.case_info;
+        const mResults = item.model_results;
+
+        // Validar filtros
+        if (searchTxt && !c.id.toLowerCase().includes(searchTxt) && !c.user_input.toLowerCase().includes(searchTxt)) return;
+        if (diffFilter !== 'all' && c.difficulty !== diffFilter) return;
+        if (catFilter !== 'all' && c.category !== catFilter) return;
+
+        // Discrepancias
+        const hasDiscrepancy = models.some(m => {
+          const res = mResults[m];
+          if (!res || res.status !== 'success') return true;
+          return activeTab === 'safe_query' ? !res.is_correct : !res.is_acceptable;
+        });
+
+        if (onlyDiscrepancies && !hasDiscrepancy) return;
+
+        // Render Fila
+        const tr = document.createElement('tr');
+        tr.onclick = () => openModal(item);
+
+        const gtBadge = activeTab === 'safe_query'
+          ? `<span class="badge ${c.expected_is_safe ? 'badge-true' : 'badge-false'}">${c.expected_is_safe ? 'SEGURO' : 'INSEGURO'}</span>`
+          : `<span class="badge badge-${c.expected_intent.split('_')[0]}">${c.expected_intent}</span>`;
+
+        let rowHtml = `
+          <td>
+            <div style="font-weight: 600;">${c.id}</div>
+            <span class="badge ${c.difficulty === 'clear' ? 'badge-diff-clear' : 'badge-diff-boundary'}">${c.difficulty}</span>
+          </td>
+          <td>
+            <div style="max-height: 48px; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(c.user_input)}</div>
+            <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 2px;">📂 ${c.category}</div>
+          </td>
+          <td>${gtBadge}</td>
+        `;
+
+        // Columnas de modelos
+        models.forEach(m => {
+          const r = mResults[m];
+          if (!r || r.status !== 'success') {
+            rowHtml += `<td><span class="badge badge-false">ERROR</span></td>`;
+            return;
+          }
+
+          let predBadge = '';
+          if (activeTab === 'safe_query') {
+            const isMatch = r.is_correct;
+            predBadge = `<span class="badge ${isMatch ? 'badge-true' : 'badge-false'}">${r.prediction ? 'SAFE' : 'UNSAFE'}</span>`;
+            if (r.noul_score !== null) {
+              const scorePct = Math.round(r.noul_score * 100);
+              predBadge += `<span class="score-bar"><span class="score-fill" style="width: ${scorePct}%"></span></span>`;
+            }
+          } else {
+            const isMatch = r.is_correct;
+            const isAcceptable = r.is_acceptable;
+            let cls = isMatch ? 'badge-true' : (isAcceptable ? 'badge-diff-boundary' : 'badge-false');
+            predBadge = `<span class="badge ${cls}">${r.prediction}</span>`;
+            if (r.confidence !== null) {
+              const confPct = Math.round(r.confidence * 100);
+              predBadge += `<span class="score-bar"><span class="score-fill" style="width: ${confPct}%"></span></span>`;
+            }
+          }
+
+          rowHtml += `
+            <td>
+              ${predBadge}
+              <div class="latency-tag">⏱️ ${r.latency_ms} ms</div>
+            </td>
+          `;
+        });
+
+        tr.innerHTML = rowHtml;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function applyFilters() {
+      renderTable();
+    }
+
+    function openModal(caseData) {
+      currentModalCase = caseData;
+      const c = caseData.case_info;
+      document.getElementById('modalCaseId').textContent = `${c.id} (${c.difficulty.toUpperCase()} - ${c.category})`;
+      document.getElementById('modalUserInput').textContent = c.user_input;
+      
+      const gtLabel = activeTab === 'safe_query'
+        ? (c.expected_is_safe ? 'SEGURO (True)' : 'INSEGURO (False)')
+        : `${c.expected_intent} ${c.acceptable_secondary ? `(Aceptable Secundario: ${c.acceptable_secondary})` : ''}`;
+
+      document.getElementById('modalGroundTruth').innerHTML = `
+        <div><strong>Esperado:</strong> <span style="color: var(--primary);">${gtLabel}</span></div>
+        <div style="margin-top: 6px; color: var(--text-muted); font-size: 0.85rem;"><strong>Justificación:</strong> ${escapeHtml(c.rationale || 'Sin justificación')}</div>
+      `;
+
+      // Render model grid
+      const grid = document.getElementById('modalModelGrid');
+      grid.innerHTML = '';
+      const summary = benchmarkData.models_summary || {};
+
+      for (const [mKey, r] of Object.entries(caseData.model_results)) {
+        const dName = summary[mKey]?.display_name || mKey;
+        const card = document.createElement('div');
+        card.className = 'model-detail-card';
+
+        if (r.status !== 'success') {
+          card.innerHTML = `
+            <div style="font-weight: 600; color: #fff; margin-bottom: 4px;">${dName}</div>
+            <div style="color: var(--danger);">❌ Estado: ${r.status}</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">${escapeHtml(r.error || '')}</div>
+          `;
+        } else {
+          let probHtml = '';
+          if (r.probabilities && Object.keys(r.probabilities).length > 0) {
+            probHtml = '<div style="margin-top: 6px; font-size: 0.75rem; color: var(--text-muted);">';
+            for (const [cls, val] of Object.entries(r.probabilities)) {
+              probHtml += `<div>• ${cls}: <strong>${Math.round(val * 100)}%</strong></div>`;
+            }
+            probHtml += '</div>';
+          }
+
+          card.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <span style="font-weight: 600; color: #fff;">${dName}</span>
+              <span class="badge ${r.is_correct ? 'badge-true' : 'badge-false'}">${r.is_correct ? 'ACIERTO' : 'DISCREPANCIA'}</span>
+            </div>
+            <div>Predicción: <strong>${r.prediction}</strong></div>
+            ${r.noul_score !== null && r.noul_score !== undefined ? `<div>Score Noul: <strong>${r.noul_score}</strong></div>` : ''}
+            ${r.confidence !== null && r.confidence !== undefined ? `<div>Confianza: <strong>${Math.round(r.confidence * 100)}%</strong></div>` : ''}
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">⏱️ Latencia: ${r.latency_ms} ms</div>
+            ${probHtml}
+          `;
+        }
+        grid.appendChild(card);
+      }
+
+      // Cargar veredicto guardado si existe
+      const savedAudit = humanAuditStore[c.id];
+      if (savedAudit) {
+        document.getElementById('humanModelChoice').value = savedAudit.preferred_model || '';
+        document.getElementById('humanVerdictTag').value = savedAudit.verdict_tag || 'optimo';
+        document.getElementById('humanNotes').value = savedAudit.notes || '';
+      } else {
+        document.getElementById('humanModelChoice').value = '';
+        document.getElementById('humanVerdictTag').value = 'optimo';
+        document.getElementById('humanNotes').value = '';
+      }
+
+      document.getElementById('detailModal').style.display = 'flex';
+    }
+
+    function closeModal() {
+      document.getElementById('detailModal').style.display = 'none';
+      currentModalCase = null;
+    }
+
+    function saveHumanVerdict() {
+      if (!currentModalCase) return;
+      const caseId = currentModalCase.case_info.id;
+      const modelChoice = document.getElementById('humanModelChoice').value;
+      const verdictTag = document.getElementById('humanVerdictTag').value;
+      const notes = document.getElementById('humanNotes').value;
+
+      humanAuditStore[caseId] = {
+        case_id: caseId,
+        preferred_model: modelChoice,
+        verdict_tag: verdictTag,
+        notes: notes,
+        reviewed_at: new Date().toISOString()
+      };
+
+      alert(`✅ Decisión guardada para caso ${caseId}`);
+      closeModal();
+    }
+
+    function exportHumanAudit() {
+      const count = Object.keys(humanAuditStore).length;
+      if (count === 0) {
+        alert('Aún no has registrado ningún veredicto humano en los casos. Haz clic en una fila para calificar.');
+        return;
+      }
+
+      const blob = new Blob([JSON.stringify(humanAuditStore, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `decision_models_human_audit_${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+  </script>
+</body>
+</html>
