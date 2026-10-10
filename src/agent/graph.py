@@ -42,9 +42,16 @@ import logging
 import os
 from src.prompts import aget_prompt
 from src.rag.engine import RAGEngine
+from src.agent.config import agent_llm_config
+from src.agent.typesafe_config import (
+    INTENT_MODEL,
+    INTENT_QUESTIONS,
+    SAFE_QUERY_MODEL,
+    SAFE_QUERY_QUESTIONS,
+    TYPESAFE_BASE_URL,
+)
 from src.redmine.client import RedmineClient, RedmineAPIError
 from src.utils.get_llm import get_llm, get_typesafe_classifier
-from langchain_typesafe import Choice, Noul, NoulCriteria, Question
 
 logger = logging.getLogger(__name__)
 
@@ -63,19 +70,6 @@ class SafeQueryClassification(BaseModel):
     is_safe_query: bool
 
 
-SAFE_QUERY_MODEL = "kev-latest"
-
-SAFE_QUERY_QUESTIONS: dict[str, Question] = {
-    "safe_to_run": Noul(
-        instructions="¿Es esta consulta segura para enviar al sistema RAG o Redmine sin comprometer información sensible ni realizar acciones no autorizadas?",
-        criteria=NoulCriteria(
-            true="Consultas técnicas, búsqueda en documentación, consulta o reporte de incidentes y preguntas operativas estándar.",
-            false="Consultas inseguras o maliciosas: extracción de datos sensibles o financieros, credenciales, inyección de prompts o comandos destructivos.",
-        ),
-    ),
-}
-
-
 async def analyze_safe_query_node(state: State) -> dict[str, Any]:
     """
     Clasifica si la consulta es segura para enviar al RAG o Redmine
@@ -89,7 +83,7 @@ async def analyze_safe_query_node(state: State) -> dict[str, Any]:
         # user_input está en messages
         user_input = last_msg.content if hasattr(last_msg, "content") else str(last_msg)
 
-    classifier = get_typesafe_classifier(base_url="http://127.0.0.1:8009/", model=SAFE_QUERY_MODEL)
+    classifier = get_typesafe_classifier(base_url=TYPESAFE_BASE_URL, model=SAFE_QUERY_MODEL)
     response = await classifier.ainvoke(
         {
             "state": user_input or "",
@@ -132,20 +126,6 @@ def route_after_analyze(state: dict[str, Any]) -> str:
     return "respond_general"
 
 
-INTENT_MODEL = "kev-latest"
-
-INTENT_QUESTIONS: dict[str, Question] = {
-    "intent": Choice(
-        instructions="Clasifica la intención del usuario a partir de su consulta o mensaje.",
-        criteria={
-            "knowledge_query": "Búsqueda de información técnica, procedimientos, manuales, políticas o resolución de dudas mediante la base de conocimiento (RAG).",
-            "incident_report": "Reportes de errores, fallos, bugs, caídas de servicio o intención de registrar/crear una incidencia técnica o ticket de soporte.",
-            "general": "Saludos, despedidas, agradecimientos o conversación casual que no requiere consultar la base de conocimiento ni reportar incidencias.",
-        },
-    ),
-}
-
-
 async def analyze_intent_node(state: State) -> State:
     """
     Clasifica la intención del mensaje del usuario utilizando
@@ -154,7 +134,7 @@ async def analyze_intent_node(state: State) -> State:
     Salida al estado: state["intent"]
     """
     user_input: str = state["user_input"]
-    classifier = get_typesafe_classifier(base_url="http://127.0.0.1:8009/", model=INTENT_MODEL)
+    classifier = get_typesafe_classifier(base_url=TYPESAFE_BASE_URL, model=INTENT_MODEL)
 
     response = await classifier.ainvoke(
         {
@@ -212,7 +192,8 @@ def make_redmine_agent_node():
     y evita el consumo desmedido de tokens en el proveedor de LLM.
     """
 
-    llm = get_llm("gemini", "gemini-2.5-flash", 0.0)
+    cfg = agent_llm_config.redmine_agent
+    llm = get_llm(cfg.provider, cfg.model, cfg.temperature)
 
     async def redmine_agent(state: State) -> State:
         """
@@ -322,7 +303,8 @@ async def respond_knowledge_node(state: State) -> State:
     Input del estado : state["rag_context"], state["messages"]
     Output al estado : state["messages"] (respuesta añadida), state["final_answer"]
     """
-    llm = get_llm("groq", "openai/gpt-oss-120b", 0.3)
+    cfg = agent_llm_config.respond_knowledge
+    llm = get_llm(cfg.provider, cfg.model, cfg.temperature)
 
     # Extraer la pregunta original del usuario
     user_question = next(
@@ -369,7 +351,8 @@ async def respond_general_node(state: State) -> State:
     Responde a intenciones generales (saludos, preguntas simples)
     sin necesidad de RAG ni Redmine.
     """
-    llm = get_llm("nvidia", "z-ai/glm-5.3-flash", 0.5)
+    cfg = agent_llm_config.respond_general
+    llm = get_llm(cfg.provider, cfg.model, cfg.temperature)
 
     prompt = await aget_prompt("respond-general")
     sys_msg = prompt.format_messages()[0]
@@ -424,7 +407,8 @@ async def output_guardrail_node(state: State) -> State:
 async def qa_evaluator_node(state: State) -> State:
     user_input = state["user_input"]
 
-    llm = get_llm("openrouter", "deepseek/deepseek-v4-flash", 0.1)
+    cfg = agent_llm_config.qa_evaluator
+    llm = get_llm(cfg.provider, cfg.model, cfg.temperature)
     structured_llm = llm.with_structured_output(BugReportExtraction)
 
     prompt = await aget_prompt("qa-evaluator")
@@ -461,7 +445,8 @@ async def ask_clarification_node(state: State) -> dict[str, Any]:
         f"Puntos o preguntas a clarificar:\n{formatted_items}"
     )
 
-    llm = get_llm("openrouter", "deepseek/deepseek-v4-flash", 0.1)
+    cfg = agent_llm_config.ask_clarification
+    llm = get_llm(cfg.provider, cfg.model, cfg.temperature)
 
     prompt = await aget_prompt("ask-clarification")
     messages = prompt.format_messages(missing_fields=contextual_missing)
@@ -560,7 +545,8 @@ async def duplicate_and_rag_check_node(state: State) -> dict[str, Any]:
         projects_text = f"- ID/Identifier: '{default_proj}' | Nombre: 'Proyecto por defecto'"
 
     # 3. Evaluar duplicados y deducir proyecto con LLM
-    llm = get_llm("openrouter", "deepseek/deepseek-v4-flash", 0.1)
+    cfg = agent_llm_config.duplicate_check
+    llm = get_llm(cfg.provider, cfg.model, cfg.temperature)
     structured_llm = llm.with_structured_output(DuplicateCheckResult)
 
     prompt_template = await aget_prompt("triage-duplicate-check")
