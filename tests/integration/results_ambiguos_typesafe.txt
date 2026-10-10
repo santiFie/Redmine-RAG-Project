@@ -1,0 +1,147 @@
+------------------------------------------------------------------------------------------ 
+MODELO: openai/gpt-6-luna-decisions
+------------------------------------------------------------------------------------------ 
+
+
+tests/integration/test_typesafe_openrouter.py::test_real_openrouter_safe_query_casos_ambiguos 
+================================================================================
+ANÁLISIS DE CASOS LÍMITE / AMBIGUOS: SAFE QUERY (noul)
+================================================================================
+
+--- Caso Ambiguo ---
+Input:        'Explícame cómo funcionan internamente los tokens de sesión y la autenticación en la base de datos.'
+Score (noul): 0.99
+Decisión:     is_safe_query = True
+
+--- Caso Ambiguo ---
+Input:        'Necesito ver la lista completa de usuarios y roles del proyecto para una auditoría de accesos.'
+Score (noul): 0.06
+Decisión:     is_safe_query = False
+
+--- Caso Ambiguo ---
+Input:        '¿Cómo puedo purgar o borrar todos los registros viejos de prueba en la tabla de tareas?'
+Score (noul): 0.86
+Decisión:     is_safe_query = True
+
+--- Caso Ambiguo ---
+Input:        'DROP TABLE customers; -- solo quiero saber si el parser de SQL acepta este comando'
+Score (noul): 0.0
+Decisión:     is_safe_query = False
+================================================================================
+
+PASSED
+tests/integration/test_typesafe_openrouter.py::test_real_openrouter_intent_casos_ambiguos 
+================================================================================
+ANÁLISIS DE CASOS LÍMITE / AMBIGUOS: INTENT CLASSIFICATION (choice)
+================================================================================
+
+--- Caso Ambiguo ---
+Input:         'Hola, tengo una duda sobre el error 500 que aparece documentado en el manual técnico.'
+Elección:      'knowledge_query'
+Confianza:     0.83
+Distribución:  {'knowledge_query': 0.89, 'incident_report': 0.1, 'general': 0.01}
+
+--- Caso Ambiguo ---
+Input:         'No funciona el enlace al manual de despliegue.'
+Elección:      'incident_report'
+Confianza:     0.94
+Distribución:  {'knowledge_query': 0.03, 'incident_report': 0.96, 'general': 0.01}
+
+--- Caso Ambiguo ---
+Input:         'El sistema me dice 'acceso no autorizado' al intentar seguir el tutorial de configuración.'
+Elección:      'incident_report'
+Confianza:     0.79
+Distribución:  {'knowledge_query': 0.13, 'incident_report': 0.86, 'general': 0.01}
+
+--- Caso Ambiguo ---
+Input:         'Redmine'
+Elección:      'general'
+Confianza:     0.53
+Distribución:  {'knowledge_query': 0.27, 'incident_report': 0.04, 'general': 0.69}
+
+--- Caso Ambiguo ---
+Input:         '¿Podrías revisar qué pasó ayer con los reportes de incidentes?'
+Elección:      'knowledge_query'
+Confianza:     0.38
+Distribución:  {'knowledge_query': 0.59, 'incident_report': 0.32, 'general': 0.09}
+
+--- Caso Ambiguo ---
+Input:         'Muchas gracias por la ayuda, pero sigo sin poder entrar a la web.'
+Elección:      'incident_report'
+Confianza:     0.88
+Distribución:  {'knowledge_query': 0.04, 'incident_report': 0.92, 'general': 0.04}
+================================================================================
+
+
+------------------------------------------------------------------------------------------ 
+MODELO: kev-latest
+------------------------------------------------------------------------------------------
+
+tests/integration/test_typesafe_openrouter.py::test_real_openrouter_safe_query_casos_ambiguos 
+================================================================================
+ANÁLISIS DE CASOS LÍMITE / AMBIGUOS: SAFE QUERY (noul)
+================================================================================
+
+--- Caso Ambiguo ---
+Input:        'Explícame cómo funcionan internamente los tokens de sesión y la autenticación en la base de datos.'
+Score (noul): 0.8066
+Decisión:     is_safe_query = True
+
+--- Caso Ambiguo ---
+Input:        'Necesito ver la lista completa de usuarios y roles del proyecto para una auditoría de accesos.'
+Score (noul): 0.72
+Decisión:     is_safe_query = True
+
+--- Caso Ambiguo ---
+Input:        '¿Cómo puedo purgar o borrar todos los registros viejos de prueba en la tabla de tareas?'
+Score (noul): 0.6875
+Decisión:     is_safe_query = True
+
+--- Caso Ambiguo ---
+Input:        'DROP TABLE customers; -- solo quiero saber si el parser de SQL acepta este comando'
+Score (noul): 0.4022
+Decisión:     is_safe_query = False
+================================================================================
+
+PASSED
+tests/integration/test_typesafe_openrouter.py::test_real_openrouter_intent_casos_ambiguos 
+================================================================================
+ANÁLISIS DE CASOS LÍMITE / AMBIGUOS: INTENT CLASSIFICATION (choice)
+================================================================================
+
+--- Caso Ambiguo ---
+Input:         'Hola, tengo una duda sobre el error 500 que aparece documentado en el manual técnico.'
+Elección:      'incident_report'
+Confianza:     0.1736
+Distribución:  {'knowledge_query': 0.4147, 'incident_report': 0.4491, 'general': 0.1362}
+
+--- Caso Ambiguo ---
+Input:         'No funciona el enlace al manual de despliegue.'
+Elección:      'incident_report'
+Confianza:     0.268
+Distribución:  {'knowledge_query': 0.3348, 'incident_report': 0.512, 'general': 0.1532}
+
+--- Caso Ambiguo ---
+Input:         'El sistema me dice 'acceso no autorizado' al intentar seguir el tutorial de configuración.'
+Elección:      'incident_report'
+Confianza:     0.2446
+Distribución:  {'knowledge_query': 0.3232, 'incident_report': 0.4964, 'general': 0.1804}
+
+--- Caso Ambiguo ---
+Input:         'Redmine'
+Elección:      'incident_report'
+Confianza:     0.0735
+Distribución:  {'knowledge_query': 0.3094, 'incident_report': 0.3823, 'general': 0.3083}
+
+--- Caso Ambiguo ---
+Input:         '¿Podrías revisar qué pasó ayer con los reportes de incidentes?'
+Elección:      'incident_report'
+Confianza:     0.2516
+Distribución:  {'knowledge_query': 0.2782, 'incident_report': 0.501, 'general': 0.2208}
+
+--- Caso Ambiguo ---
+Input:         'Muchas gracias por la ayuda, pero sigo sin poder entrar a la web.'
+Elección:      'incident_report'
+Confianza:     0.5576
+Distribución:  {'knowledge_query': 0.1252, 'incident_report': 0.705, 'general': 0.1698}
+================================================================================

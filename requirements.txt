@@ -20,6 +20,7 @@ langgraph-checkpoint-postgres>=2.0.0  # checkpointing persistente en Postgres
 langchain-groq==1.1.3                 # proveedor Groq (ChatGroq)
 langchain-nvidia-ai-endpoints==1.4.3  # proveedor NVIDIA (ChatNVIDIA)
 langchain-google-genai==4.3.4         # proveedor Google (Gemini)
+langchain-typesafe>=0.0.1a3           # soporte TypeSafe / Decision Models (Jev, Luna Decisions)
 langchain-huggingface==1.2.2          # HuggingFaceEndpoint
 langchain-google-vertexai>=2.0.0      # requerido: shim de compatibilidad ragas 0.4 con langchain-community>=0.4
                                       # (ragas importa ChatVertexAI desde langchain_community.chat_models.vertexai,
