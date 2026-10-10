@@ -5,6 +5,7 @@ from langchain_groq import ChatGroq
 from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
 from langchain_nvidia_ai_endpoints import ChatNVIDIA
 from langchain_openai import ChatOpenAI
+from langchain_typesafe import TypeSafeClassifier
 from pydantic import SecretStr
 
 
@@ -51,3 +52,30 @@ def get_llm(
         raise ValueError(f"Provider {provider} not supported")
 
     return factory()
+
+
+def get_typesafe_classifier(
+    model: str = "openai/gpt-6-luna-decisions",
+    base_url: str | None = None,
+    api_key: str | None = None,
+    timeout: float = 60.0,
+) -> TypeSafeClassifier:
+    """
+    Factory para instanciar TypeSafeClassifier compatible con OpenRouter y TypeSafe AI.
+
+    Para OpenRouter, los endpoints de decisiones (System One) se resuelven bajo
+    `/v1/systemone` a partir del base_url proporcionado (por defecto: `https://openrouter.ai/api`).
+    """
+    resolved_base_url = base_url or "https://openrouter.ai/api"
+    resolved_api_key = (
+        api_key
+        or os.getenv("OPENROUTER_API_KEY")
+        or os.getenv("TYPESAFE_API_KEY")
+        or "dummy-key-for-mock"
+    )
+    return TypeSafeClassifier(
+        model=model,
+        base_url=resolved_base_url,
+        api_key=SecretStr(resolved_api_key) if resolved_api_key else None,
+        timeout=timeout,
+    )

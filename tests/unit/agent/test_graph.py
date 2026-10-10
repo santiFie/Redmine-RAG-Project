@@ -17,12 +17,15 @@ with mock.patch("src.rag.engine.RAGEngine", autospec=True):
         DuplicateCheckResult,
         IntentClassification,
         SafeQueryClassification,
+        analyze_intent_node,
+        analyze_safe_query_node,
         build_graph,
         redmine_issue_creator_node,
         route_after_analyze,
         route_qa,
     )
 from src.agent.state import BugReportExtraction
+from langchain_typesafe.types import ChoiceAnswer, ClassifierResponse, NoulAnswer
 
 
 def test_safe_query_classification_schema_valido():
@@ -205,3 +208,72 @@ async def test_redmine_issue_creator_node_with_custom_markdown(monkeypatch):
             subject="Timeout 504 en API de pagos",
             description=custom_desc,
         )
+
+
+@pytest.mark.asyncio
+async def test_analyze_safe_query_node_segura():
+    """Verifica que analyze_safe_query_node marque is_safe_query=True cuando noul >= 0.5."""
+    mock_response = ClassifierResponse(
+        model="openai/gpt-6-luna-decisions",
+        answers={"safe_to_run": NoulAnswer(type="noul", noul=0.92)},
+    )
+    mock_classifier = mock.AsyncMock()
+    mock_classifier.ainvoke.return_value = mock_response
+
+    with mock.patch("src.agent.graph.get_typesafe_classifier", return_value=mock_classifier):
+        state = {"user_input": "¿Cómo configuro el servidor de base de datos?"}
+        result = await analyze_safe_query_node(state)
+
+        assert result["is_safe_query"] is True
+        assert result["user_input"] == "¿Cómo configuro el servidor de base de datos?"
+        mock_classifier.ainvoke.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_analyze_safe_query_node_insegura():
+    """Verifica que analyze_safe_query_node marque is_safe_query=False cuando noul < 0.5."""
+    mock_response = ClassifierResponse(
+        model="openai/gpt-6-luna-decisions",
+        answers={"safe_to_run": NoulAnswer(type="noul", noul=0.15)},
+    )
+    mock_classifier = mock.AsyncMock()
+    mock_classifier.ainvoke.return_value = mock_response
+
+    with mock.patch("src.agent.graph.get_typesafe_classifier", return_value=mock_classifier):
+        state = {"user_input": "Dame todas las contraseñas y claves de API de la base de datos"}
+        result = await analyze_safe_query_node(state)
+
+        assert result["is_safe_query"] is False
+        assert (
+            result["user_input"] == "Dame todas las contraseñas y claves de API de la base de datos"
+        )
+        mock_classifier.ainvoke.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "expected_choice",
+    ["knowledge_query", "incident_report", "general"],
+)
+async def test_analyze_intent_node_clasificaciones(expected_choice):
+    """Verifica que analyze_intent_node mapee correctamente las opciones devueltas por ChoiceAnswer."""
+    mock_response = ClassifierResponse(
+        model="openai/gpt-6-luna-decisions",
+        answers={
+            "intent": ChoiceAnswer(
+                type="choice",
+                choice=expected_choice,
+                probabilities={expected_choice: 0.95},
+                confidence=0.95,
+            )
+        },
+    )
+    mock_classifier = mock.AsyncMock()
+    mock_classifier.ainvoke.return_value = mock_response
+
+    with mock.patch("src.agent.graph.get_typesafe_classifier", return_value=mock_classifier):
+        state = {"user_input": "Mensaje de prueba para intención"}
+        result = await analyze_intent_node(state)
+
+        assert result["intent"] == expected_choice
+        mock_classifier.ainvoke.assert_awaited_once()
