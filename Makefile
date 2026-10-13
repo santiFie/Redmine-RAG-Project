@@ -7,7 +7,7 @@ PYTHON = $(VENV)/bin/python
 LANGGRAPH = $(VENV)/bin/langgraph
 PYTEST = $(VENV)/bin/pytest
 
-.PHONY: help install up up-dev up-prod make-up-prod build down docker-up docker-down dev seed-data index index-incremental test test-ragas serve-ragas test-agent-eval mcp-build mcp-run mcp-test clean
+.PHONY: help install up up-dev up-prod make-up-prod build down docker-up docker-down dev seed-data index index-incremental test test-agent-eval test-ragas serve-ragas benchmark-decision-smoke benchmark-decision serve-benchmark mcp-build mcp-run mcp-test clean
 
 help: ## Muestra este mensaje de ayuda
 	@echo "Comandos disponibles:"
@@ -32,7 +32,7 @@ up-dev: ## Levanta todos los servicios dockerizados de infraestructura menos Lan
 
 up-prod: ## Levanta absolutamente todos los servicios dockerizados (langgraph-api, bff, ui, postgres, redmine, qdrant) con rebuild (--build)
 	@echo "Levantando todos los servicios en Docker con rebuild forzado (--build)..."
-	@docker compose -f docker-compose.yml -f docker-compose.override.yml up --build -d
+	@docker compose -f docker-compose.yml -f docker-compose.override.yml up
 
 make-up-prod: up-prod ## Alias de up-prod para levantar todos los servicios dockerizados
 
@@ -76,6 +76,15 @@ test-ragas: ## Ejecuta la evaluación RAG con Ragas y levanta el servidor de res
 serve-ragas: ## Inicia únicamente el servidor HTTP de resultados Ragas
 	@echo "Visualización disponible en http://127.0.0.1:8765/dashboard.html"
 	cd tests/ragas/results && python3 -m http.server 8765 --bind 127.0.0.1
+
+benchmark-decision-smoke: ## Ejecuta el smoke test rápido del benchmark de Decision Models (4 casos)
+	$(PYTHON) tests/benchmarks/run_decision_benchmark.py --smoke
+
+benchmark-decision: ## Ejecuta el benchmark completo multimodelo de Decision Models (75 casos)
+	$(PYTHON) tests/benchmarks/run_decision_benchmark.py
+
+serve-benchmark: ## Inicia el servidor HTTP local para visualizar el Dashboard de Decision Models
+	$(PYTHON) tests/benchmarks/serve_dashboard.py
 
 # ── MCP Server (Redmine) ──────────────────────────────────────────────────────
 MCP_IMAGE ?= redmine-mcp-server
