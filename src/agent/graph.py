@@ -193,7 +193,7 @@ def make_redmine_agent_node():
     """
 
     cfg = agent_llm_config.redmine_agent
-    llm = get_llm(cfg.provider, cfg.model, cfg.temperature)
+    llm = get_llm(cfg.provider, cfg.model, cfg.temperature, **cfg.extra_kwargs)
 
     async def redmine_agent(state: State) -> State:
         """
@@ -304,7 +304,7 @@ async def respond_knowledge_node(state: State) -> State:
     Output al estado : state["messages"] (respuesta añadida), state["final_answer"]
     """
     cfg = agent_llm_config.respond_knowledge
-    llm = get_llm(cfg.provider, cfg.model, cfg.temperature)
+    llm = get_llm(cfg.provider, cfg.model, cfg.temperature, **cfg.extra_kwargs)
 
     # Extraer la pregunta original del usuario
     user_question = next(
@@ -352,7 +352,7 @@ async def respond_general_node(state: State) -> State:
     sin necesidad de RAG ni Redmine.
     """
     cfg = agent_llm_config.respond_general
-    llm = get_llm(cfg.provider, cfg.model, cfg.temperature)
+    llm = get_llm(cfg.provider, cfg.model, cfg.temperature, **cfg.extra_kwargs)
 
     prompt = await aget_prompt("respond-general")
     sys_msg = prompt.format_messages()[0]
@@ -408,7 +408,7 @@ async def qa_evaluator_node(state: State) -> State:
     user_input = state["user_input"]
 
     cfg = agent_llm_config.qa_evaluator
-    llm = get_llm(cfg.provider, cfg.model, cfg.temperature)
+    llm = get_llm(cfg.provider, cfg.model, cfg.temperature, **cfg.extra_kwargs)
     structured_llm = llm.with_structured_output(BugReportExtraction)
 
     prompt = await aget_prompt("qa-evaluator")
@@ -429,37 +429,42 @@ async def qa_evaluator_node(state: State) -> State:
 async def ask_clarification_node(state: State) -> dict[str, Any]:
     bug_analysis = state.get("bug_analysis")
     missing_fields = bug_analysis.missing_fields if bug_analysis else []
-    clarification_questions = bug_analysis.clarification_questions if bug_analysis else []
     user_input = state.get("user_input", "")
 
     # Construir bloque contextualizado para el prompt
-    if clarification_questions:
-        formatted_items = "\n".join(f"- {q}" for q in clarification_questions)
-    elif missing_fields:
+    if missing_fields:
         formatted_items = "\n".join(f"- {f}" for f in missing_fields)
     else:
-        formatted_items = "- Contexto adicional o detalles sobre el comportamiento observado."
-
-    contextual_missing = (
-        f'Mensaje del usuario:\n"""{user_input}"""\n\n'
-        f"Puntos o preguntas a clarificar:\n{formatted_items}"
-    )
+        formatted_items = (
+            "- Contexto adicional, módulo o detalles sobre el comportamiento observado."
+        )
 
     cfg = agent_llm_config.ask_clarification
-    llm = get_llm(cfg.provider, cfg.model, cfg.temperature)
+    llm = get_llm(cfg.provider, cfg.model, cfg.temperature, **cfg.extra_kwargs)
 
     prompt = await aget_prompt("ask-clarification")
-    messages = prompt.format_messages(missing_fields=contextual_missing)
+    messages = prompt.format_messages(
+        user_input=user_input,
+        missing_fields=formatted_items,
+    )
 
     response = await llm.ainvoke(messages)
-    question_text = response.content
+    raw_content = response.content if isinstance(response.content, str) else str(response.content)
+
+    # Limpieza defensiva de posibles etiquetas residuales o comillas triples
+    question_text = raw_content.strip()
+    if question_text.startswith('"""') and question_text.endswith('"""'):
+        question_text = question_text[3:-3].strip()
+    if question_text.lower().startswith("respuesta:"):
+        question_text = question_text[len("respuesta:") :].strip()
+    if question_text.startswith('"""') and question_text.endswith('"""'):
+        question_text = question_text[3:-3].strip()
 
     user_response = interrupt(
         {
             "action": "provide_clarification",
             "question": question_text,
             "missing_fields": missing_fields,
-            "clarification_questions": clarification_questions,
         }
     )
 
@@ -546,7 +551,7 @@ async def duplicate_and_rag_check_node(state: State) -> dict[str, Any]:
 
     # 3. Evaluar duplicados y deducir proyecto con LLM
     cfg = agent_llm_config.duplicate_check
-    llm = get_llm(cfg.provider, cfg.model, cfg.temperature)
+    llm = get_llm(cfg.provider, cfg.model, cfg.temperature, **cfg.extra_kwargs)
     structured_llm = llm.with_structured_output(DuplicateCheckResult)
 
     prompt_template = await aget_prompt("triage-duplicate-check")
@@ -579,6 +584,7 @@ async def duplicate_and_rag_check_node(state: State) -> dict[str, Any]:
         "available_projects": available_projects,
         "rag_context": rag_context,
         "retrieved_issue_ids": retrieved_ids,
+        "reasoning": eval_result.reasoning,
     }
 
 

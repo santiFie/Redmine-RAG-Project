@@ -15,8 +15,8 @@ with mock.patch("src.rag.engine.RAGEngine", autospec=True):
 
 
 @pytest.mark.asyncio
-async def test_ask_clarification_con_clarification_questions():
-    """Valida la generación de preguntas de clarificación basadas en clarification_questions y el interrupt."""
+async def test_ask_clarification_con_missing_fields():
+    """Valida la generación de preguntas de clarificación basadas exclusivamente en missing_fields y el interrupt."""
     mock_llm_response = mock.MagicMock()
     mock_llm_response.content = "¿Podrías indicarnos en qué navegador y versión ocurre el fallo?"
 
@@ -39,7 +39,6 @@ async def test_ask_clarification_con_clarification_questions():
                 is_sufficient=False,
                 title_summary="Fallo en botón de exportar PDF",
                 missing_fields=["navegador", "versión"],
-                clarification_questions=["¿Qué navegador y versión utilizas?"],
             ),
             "final_answer": "",
         }
@@ -54,9 +53,8 @@ async def test_ask_clarification_con_clarification_questions():
             interrupt_payload["question"]
             == "¿Podrías indicarnos en qué navegador y versión ocurre el fallo?"
         )
-        assert interrupt_payload["clarification_questions"] == [
-            "¿Qué navegador y versión utilizas?"
-        ]
+        assert interrupt_payload["missing_fields"] == ["navegador", "versión"]
+        assert "clarification_questions" not in interrupt_payload
 
         # Validar actualización del estado
         assert res["clarification_turns"] == 1
