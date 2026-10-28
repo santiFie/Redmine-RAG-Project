@@ -1,4 +1,5 @@
 import os
+from typing import Any
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_groq import ChatGroq
@@ -13,23 +14,26 @@ def get_llm(
     provider: str = "groq",
     model: str = "openai/gpt-oss-120b",
     temperature: float = 0,
+    **kwargs: Any,
 ):
     provider = provider.lower()
 
     _REGISTRY = {
-        "groq": lambda: ChatGroq(model=model, temperature=temperature, timeout=120),
+        "groq": lambda: ChatGroq(model=model, temperature=temperature, timeout=120, **kwargs),
         "nvidia": lambda: ChatOpenAI(
             model=model,
             base_url="https://integrate.api.nvidia.com/v1",
             api_key=SecretStr(str(os.getenv("NVIDIA_API_KEY", ""))),
             temperature=temperature,
             timeout=120,
+            **kwargs,
         ),
         "openrouter": lambda: ChatOpenAI(
             model=model,
             base_url="https://openrouter.ai/api/v1",
             temperature=temperature,
             api_key=SecretStr(str(os.getenv("OPENROUTER_API_KEY", ""))),
+            **kwargs,
         ),
         "huggingface": lambda: ChatHuggingFace(
             llm=HuggingFaceEndpoint(
@@ -37,6 +41,7 @@ def get_llm(
                 temperature=temperature,
                 huggingfacehub_api_token=str(os.getenv("HUGGINGFACE_API_KEY", "")),
                 task="text-generation",
+                **kwargs,
             ),
         ),
         "gemini": lambda: ChatGoogleGenerativeAI(
@@ -44,6 +49,7 @@ def get_llm(
             temperature=temperature,
             api_key=str(os.getenv("GOOGLE_API_KEY")),
             timeout=120,
+            **kwargs,
         ),
     }
 

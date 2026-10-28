@@ -24,14 +24,20 @@ class BugReportExtraction(BaseModel):
     suggested_tracker: Literal["Bug", "Feature", "Soporte"] = Field(default="Bug")
     suggested_priority: Literal["Baja", "Normal", "Alta", "Urgente"] = Field(default="Normal")
     incident_type: Literal[
-        "infra_outage", "backend_api", "frontend_ui", "data_config", "general_bug"
+        "infra_outage",
+        "backend_api",
+        "frontend_ui",
+        "data_config",
+        "general_bug",
+        "feature_request",
+        "support_request",
     ] = Field(
         default="general_bug",
-        description="Tipología técnica del incidente (infraestructura/timeout, API backend, UI frontend, datos/config o bug general).",
+        description="Tipología del ticket: infra_outage, backend_api, frontend_ui, data_config, general_bug, feature_request (mejoras/nuevas funciones) o support_request (accesos/permisos/soporte operativo).",
     )
     clarification_questions: list[str] = Field(
         default_factory=list,
-        description="Preguntas contextuales específicas y empáticas dirigidas al usuario cuando falta información crítica.",
+        description="[DEPRECADO] Las preguntas se generan directamente en ask_clarification_node a partir de missing_fields.",
     )
     technical_details: str = Field(
         default="",
@@ -64,6 +70,7 @@ class State(TypedDict):
     available_projects: NotRequired[list[dict[str, Any]]]
     created_issue_id: NotRequired[int | None]
     created_issue_url: NotRequired[str | None]
+    reasoning: NotRequired[str]
 
     # Salida Final
     final_answer: str
