@@ -24,6 +24,7 @@ class LLMNodeConfig:
     provider: str
     model: str
     temperature: float = 0.0
+    extra_kwargs: dict[str, Any] = field(default_factory=dict)
 
     def instantiate(self) -> Any:
         """Instancia el cliente LLM correspondiente usando la factory get_llm."""
@@ -31,6 +32,7 @@ class LLMNodeConfig:
             provider=self.provider,
             model=self.model,
             temperature=self.temperature,
+            **self.extra_kwargs,
         )
 
 
@@ -78,8 +80,15 @@ class AgentLLMConfig:
     ask_clarification: LLMNodeConfig = field(
         default_factory=lambda: LLMNodeConfig(
             provider=os.getenv("AGENT_CLARIFICATION_PROVIDER", "openrouter"),
-            model=os.getenv("AGENT_CLARIFICATION_MODEL", "deepseek/deepseek-v4-flash"),
+            model=os.getenv("AGENT_CLARIFICATION_MODEL", "deepseek/deepseek-v3.2"),
             temperature=float(os.getenv("AGENT_CLARIFICATION_TEMP", "0.2")),
+            extra_kwargs={
+                "extra_body": {
+                    "reasoning": {
+                        "effort": os.getenv("AGENT_CLARIFICATION_REASONING", "none"),
+                    }
+                }
+            },
         )
     )
 
