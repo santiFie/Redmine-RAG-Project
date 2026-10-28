@@ -1,0 +1,334 @@
+{
+  "metadata": {
+    "name": "dataset-triage-duplicate-check",
+    "description": "Ground truth curado para evaluar el razonamiento de duplicados y asignación de proyecto del nodo duplicate_and_rag_check_node.",
+    "dataset_type": "kv",
+    "version": "2.0.0",
+    "total_cases": 17
+  },
+  "examples": [
+    {
+      "id": "triage-dedup-001",
+      "description": "Detección positiva de duplicado exacto contra ticket abierto en desarrollo en API core",
+      "inputs": {
+        "enriched_query": "Problema: [Pagos] Transacciones duplicadas por falta de Idempotency-Key\nTipo: backend_api\nDetalles: Doble cobro en POST /api/v1/payments/charge al presionar dos veces el botón de pago con mala conexión móvil.\nEntorno: Producción / API Pagos",
+        "rag_context": "Ticket #1042 (Abierto): '[API Pagos] Implementar Idempotency-Key en endpoint /api/v1/payments/charge para evitar dobles cobros cuando el cliente reintenta'. Estado: En Progreso.",
+        "projects_text": "- ID/Identifier: 'proyecto-prueba' | Nombre: 'Proyecto Prueba' | Descripción: 'Aplicaciones core y APIs de la plataforma'\n- ID/Identifier: 'infraestructura-de-servicios' | Nombre: 'Infraestructura de Servicios' | Descripción: 'Servidores, clusters k8s y bases de datos'"
+      },
+      "outputs": {
+        "is_duplicate": true,
+        "duplicate_issue_id": 1042,
+        "suggested_project_id": "proyecto-prueba",
+        "reasoning": "El incidente describe exactamente el problema reportado en el ticket abierto #1042 relativo a la falta de idempotencia en /api/v1/payments/charge."
+      },
+      "metadata": {
+        "difficulty": "clear",
+        "category": "duplicate_open_ticket"
+      }
+    },
+    {
+      "id": "triage-dedup-002",
+      "description": "Detección positiva de duplicado en infraestructura y enrutamiento al proyecto de infraestructura de servicios",
+      "inputs": {
+        "enriched_query": "Problema: [Infra] OOMKilled en pods de celery workers al generar reportes pesados\nTipo: infra_outage\nDetalles: Pods terminan con exit code 137 OOMKilled en clúster k8s.\nEntorno: Producción / Kubernetes",
+        "rag_context": "Ticket #890 (Abierto): '[K8s] Celery Worker OOMKilled por consumo excesivo de memoria en reportes PDF masivos'. Estado: Asignado.",
+        "projects_text": "- ID/Identifier: 'proyecto-prueba' | Nombre: 'Proyecto Prueba' | Descripción: 'Aplicaciones core y APIs de la plataforma'\n- ID/Identifier: 'infraestructura-de-servicios' | Nombre: 'Infraestructura de Servicios' | Descripción: 'Servidores, clusters k8s y bases de datos'"
+      },
+      "outputs": {
+        "is_duplicate": true,
+        "duplicate_issue_id": 890,
+        "suggested_project_id": "infraestructura-de-servicios",
+        "reasoning": "Existe un ticket abierto #890 que aborda específicamente los OOMKilled en los pods de Celery Workers por exportación pesada."
+      },
+      "metadata": {
+        "difficulty": "clear",
+        "category": "duplicate_open_ticket"
+      }
+    },
+    {
+      "id": "triage-dedup-003",
+      "description": "Detección de duplicado con solución documentada en ticket histórico cerrado para responder con workaround existente",
+      "inputs": {
+        "enriched_query": "Problema: [VPN] Fallo de conexión OpenVPN por certificado vencido\nTipo: infra_outage\nDetalles: TLS handshake failed, certificate expired en clientes Linux.\nEntorno: VPN Corporativa / Linux",
+        "rag_context": "Ticket #512 (Cerrado - Resuelto): '[VPN] Error TLS en OpenVPN por expiración de CA intermedia'. Solución documentada: Actualizar perfil a techvanguard-corp-v2.ovpn desde el portal de accesos y sincronizar hora con chrony.",
+        "projects_text": "- ID/Identifier: 'proyecto-prueba' | Nombre: 'Proyecto Prueba' | Descripción: 'Aplicaciones core y APIs de la plataforma'\n- ID/Identifier: 'infraestructura-de-servicios' | Nombre: 'Infraestructura de Servicios' | Descripción: 'Servidores, clusters k8s y bases de datos'"
+      },
+      "outputs": {
+        "is_duplicate": true,
+        "duplicate_issue_id": 512,
+        "suggested_project_id": "infraestructura-de-servicios",
+        "reasoning": "El incidente corresponde al ticket resuelto #512 que contiene la solución documentada para renovar el archivo de configuración .ovpn."
+      },
+      "metadata": {
+        "difficulty": "clear",
+        "category": "duplicate_solved_solution"
+      }
+    },
+    {
+      "id": "triage-dedup-004",
+      "description": "Control de falso positivo: reporte en checkout con error 400 que no debe confundirse con tickets históricos de doble cobro o 500",
+      "inputs": {
+        "enriched_query": "Problema: [API Checkout] Error 400 Bad Request al ingresar código de cupón con guiones o puntos\nTipo: backend_api\nDetalles: Error de validación regex en campo coupon_code de POST /api/v1/checkout.\nEntorno: Staging / Backend",
+        "rag_context": "Ticket #1042: '[API Pagos] Implementar Idempotency-Key en /api/v1/payments/charge'.\nTicket #730: '[Checkout] Error 500 KeyError billing_address'.",
+        "projects_text": "- ID/Identifier: 'proyecto-prueba' | Nombre: 'Proyecto Prueba' | Descripción: 'Aplicaciones core y APIs de la plataforma'\n- ID/Identifier: 'infraestructura-de-servicios' | Nombre: 'Infraestructura de Servicios' | Descripción: 'Servidores, clusters k8s y bases de datos'"
+      },
+      "outputs": {
+        "is_duplicate": false,
+        "duplicate_issue_id": null,
+        "suggested_project_id": "proyecto-prueba",
+        "reasoning": "Aunque involucra el módulo de checkout, la causa raíz es una validación de cupones (error 400), no tiene relación con el doble cobro ni con billing_address."
+      },
+      "metadata": {
+        "difficulty": "boundary",
+        "category": "control_negative_not_duplicate"
+      }
+    },
+    {
+      "id": "triage-dedup-005",
+      "description": "Control de falso positivo en infraestructura: fallo de DNS externo que no debe asociarse a ajustes históricos de MTU de red",
+      "inputs": {
+        "enriched_query": "Problema: [Infra] DNS interno CoreDNS en Kubernetes arroja timeouts intermitentes resolviendo dominios .com\nTipo: infra_outage\nDetalles: Latencias superiores a 5s y SERVFAIL en consultas UDP hacia upstream resolvers.\nEntorno: Producción / Kubernetes Clúster",
+        "rag_context": "Ticket #610 (Resuelto): '[Red] Ajuste de MTU en interfaces Calico para pods de backend'.",
+        "projects_text": "- ID/Identifier: 'proyecto-prueba' | Nombre: 'Proyecto Prueba' | Descripción: 'Aplicaciones core y APIs de la plataforma'\n- ID/Identifier: 'infraestructura-de-servicios' | Nombre: 'Infraestructura de Servicios' | Descripción: 'Servidores, clusters k8s y bases de datos'"
+      },
+      "outputs": {
+        "is_duplicate": false,
+        "duplicate_issue_id": null,
+        "suggested_project_id": "infraestructura-de-servicios",
+        "reasoning": "Se trata de un problema nuevo en CoreDNS (resolución de dominios externos), diferente del ajuste histórico de MTU de Calico."
+      },
+      "metadata": {
+        "difficulty": "boundary",
+        "category": "control_negative_not_duplicate"
+      }
+    },
+    {
+      "id": "triage-dedup-006",
+      "description": "Caso borde con contexto RAG vacío sin candidatos similares, evaluando descarte de duplicado y asignación a proyecto core",
+      "inputs": {
+        "enriched_query": "Problema: [Web] Error de sintaxis en el componente DatePicker al seleccionar años bisiestos\nTipo: frontend_ui\nDetalles: TypeError en date_utils.js al elegir 29 de febrero.\nEntorno: Producción / Web",
+        "rag_context": "No se encontraron tickets similares en la base de conocimiento (similitud baja o nula).",
+        "projects_text": "- ID/Identifier: 'proyecto-prueba' | Nombre: 'Proyecto Prueba' | Descripción: 'Aplicaciones core y APIs de la plataforma'\n- ID/Identifier: 'infraestructura-de-servicios' | Nombre: 'Infraestructura de Servicios' | Descripción: 'Servidores, clusters k8s y bases de datos'"
+      },
+      "outputs": {
+        "is_duplicate": false,
+        "duplicate_issue_id": null,
+        "suggested_project_id": "proyecto-prueba",
+        "reasoning": "No se recuperaron tickets similares en la base de conocimiento. Se trata de un bug nuevo en el frontend web que debe crearse en proyecto-prueba."
+      },
+      "metadata": {
+        "difficulty": "boundary",
+        "category": "rag_empty_no_candidates"
+      }
+    },
+    {
+      "id": "triage-dedup-007",
+      "description": "Ticket histórico cerrado con resolución 'Rechazado' sin solución, evaluando que NO se marque como solución existente",
+      "inputs": {
+        "enriched_query": "Problema: [API] Solicitud de soporte para compresión Brotli en respuestas HTTP\nTipo: backend_api\nDetalles: Cliente solicita Content-Encoding: br para optimizar tráfico.\nEntorno: Producción / API Gateway",
+        "rag_context": "Ticket #320 (Cerrado - Rechazado): '[API] Habilitar compresión Brotli'. Resolución: Rechazado por incompatibilidad con el proxy perimetral heredado. No implementado.",
+        "projects_text": "- ID/Identifier: 'proyecto-prueba' | Nombre: 'Proyecto Prueba' | Descripción: 'Aplicaciones core y APIs de la plataforma'\n- ID/Identifier: 'infraestructura-de-servicios' | Nombre: 'Infraestructura de Servicios' | Descripción: 'Servidores, clusters k8s y bases de datos'"
+      },
+      "outputs": {
+        "is_duplicate": false,
+        "duplicate_issue_id": null,
+        "suggested_project_id": "proyecto-prueba",
+        "reasoning": "El ticket histórico #320 fue cerrado como rechazado sin solución aplicable ni workaround. Al tratarse de una nueva solicitud que requiere evaluación, no debe considerarse un duplicado resuelto."
+      },
+      "metadata": {
+        "difficulty": "boundary",
+        "category": "rejected_ticket_not_duplicate"
+      }
+    },
+    {
+      "id": "triage-dedup-008",
+      "description": "Regresión explícita en nueva versión que no debe tratarse como duplicado cerrado resuelto sino como nuevo ticket",
+      "inputs": {
+        "enriched_query": "Problema: [Auth] Regresión: Vuelve a fallar la autenticación SAML SSO tras actualización a versión 2.4\nTipo: backend_api\nDetalles: Error SAMLResponse signature invalid al hacer login corporativo en v2.4.\nEntorno: Producción / Auth",
+        "rag_context": "Ticket #405 (Cerrado - Resuelto): '[Auth] Corregir validación de firma en SAMLResponse SSO para v2.1'. Estado: Resuelto.",
+        "projects_text": "- ID/Identifier: 'proyecto-prueba' | Nombre: 'Proyecto Prueba' | Descripción: 'Aplicaciones core y APIs de la plataforma'\n- ID/Identifier: 'infraestructura-de-servicios' | Nombre: 'Infraestructura de Servicios' | Descripción: 'Servidores, clusters k8s y bases de datos'"
+      },
+      "outputs": {
+        "is_duplicate": false,
+        "duplicate_issue_id": null,
+        "suggested_project_id": "proyecto-prueba",
+        "reasoning": "Aunque el ticket #405 resolvió un problema similar en la versión v2.1, este reporte es una regresión explícita en la nueva versión v2.4, por lo que requiere abrir un nuevo ticket de investigación."
+      },
+      "metadata": {
+        "difficulty": "boundary",
+        "category": "regression_new_ticket"
+      }
+    },
+    {
+      "id": "triage-dedup-009",
+      "description": "Múltiples tickets candidatos en RAG con distractores de base de datos, evaluando selección del ID exacto (#1120)",
+      "inputs": {
+        "enriched_query": "Problema: [DB] Deadlock en tabla orders durante checkout simultáneo de ofertas relámpago\nTipo: backend_api\nDetalles: Deadlock detected en UPDATE orders WHERE status = 'pending'.\nEntorno: Producción / PostgreSQL",
+        "rag_context": "Ticket #1105 (Abierto): '[DB] Optimizar índices en tabla order_items'.\nTicket #1120 (Abierto): '[DB] Deadlocks intermitentes en tabla orders durante picos de venta masiva'. Estado: En Análisis.\nTicket #950 (Cerrado): '[Checkout] Validar stock antes de crear orden'.",
+        "projects_text": "- ID/Identifier: 'proyecto-prueba' | Nombre: 'Proyecto Prueba' | Descripción: 'Aplicaciones core y APIs de la plataforma'\n- ID/Identifier: 'infraestructura-de-servicios' | Nombre: 'Infraestructura de Servicios' | Descripción: 'Servidores, clusters k8s y bases de datos'"
+      },
+      "outputs": {
+        "is_duplicate": true,
+        "duplicate_issue_id": 1120,
+        "suggested_project_id": "proyecto-prueba",
+        "reasoning": "Entre los tickets candidatos del contexto, el ticket abierto #1120 describe de manera precisa el problema de deadlocks en la tabla orders durante picos de tráfico."
+      },
+      "metadata": {
+        "difficulty": "boundary",
+        "category": "multiple_candidates_distractors"
+      }
+    },
+    {
+      "id": "triage-dedup-010",
+      "description": "Hard negative: mismo error HTTP 500 en facturación pero con causa raíz de conectividad externa vs validación de datos",
+      "inputs": {
+        "enriched_query": "Problema: [API Facturación] Error 500 al emitir factura electrónica por caída de conexión con AFIP\nTipo: backend_api\nDetalles: ConnectTimeout en llamada SOAP al web service de AFIP.\nEntorno: Producción / Facturación",
+        "rag_context": "Ticket #780 (Abierto): '[API Facturación] Error 500 por campo postal_code nulo al validar payload de factura'.\nTicket #640 (Cerrado): '[Facturación] Actualizar certificados de homologación AFIP'.",
+        "projects_text": "- ID/Identifier: 'proyecto-prueba' | Nombre: 'Proyecto Prueba' | Descripción: 'Aplicaciones core y APIs de la plataforma'\n- ID/Identifier: 'infraestructura-de-servicios' | Nombre: 'Infraestructura de Servicios' | Descripción: 'Servidores, clusters k8s y bases de datos'"
+      },
+      "outputs": {
+        "is_duplicate": false,
+        "duplicate_issue_id": null,
+        "suggested_project_id": "proyecto-prueba",
+        "reasoning": "A pesar de compartir el error HTTP 500 en la API de facturación, la causa raíz actual es un ConnectTimeout con el servicio externo de AFIP, a diferencia del ticket #780 que es una validación de postal_code nulo."
+      },
+      "metadata": {
+        "difficulty": "boundary",
+        "category": "same_http_different_root_cause"
+      }
+    },
+    {
+      "id": "triage-dedup-011",
+      "description": "Asignación en catálogo ampliado de 4 proyectos, evaluando enrutamiento a 'data-analytics' por tecnología ETL/Snowflake",
+      "inputs": {
+        "enriched_query": "Problema: [Data] El pipeline ETL de Snowflake falló por schema mismatch en la tabla raw_events\nTipo: data_config\nDetalles: Airflow DAG sync_events falló con SchemaError: Column extra_payload not found.\nEntorno: Producción / Data Platform",
+        "rag_context": "No se registran tickets abiertos similares en data platform.",
+        "projects_text": "- ID/Identifier: 'proyecto-prueba' | Nombre: 'Proyecto Prueba' | Descripción: 'Aplicaciones core y APIs de la plataforma'\n- ID/Identifier: 'infraestructura-de-servicios' | Nombre: 'Infraestructura de Servicios' | Descripción: 'Servidores, clusters k8s y bases de datos'\n- ID/Identifier: 'data-analytics' | Nombre: 'Data & Analytics' | Descripción: 'Pipelines ETL, Airflow, Snowflake y modelos analíticos'\n- ID/Identifier: 'portal-clientes-web' | Nombre: 'Portal Clientes Web' | Descripción: 'Frontend y experiencia de usuario del portal'"
+      },
+      "outputs": {
+        "is_duplicate": false,
+        "duplicate_issue_id": null,
+        "suggested_project_id": "data-analytics",
+        "reasoning": "El incidente corresponde a un fallo en el pipeline ETL de Airflow y Snowflake, cuyo proyecto idóneo dentro del catálogo es 'data-analytics'."
+      },
+      "metadata": {
+        "difficulty": "clear",
+        "category": "extended_catalog_routing"
+      }
+    },
+    {
+      "id": "triage-dedup-012",
+      "description": "Paráfrasis semántica funcional vs técnica: queja de ventas ('pantalla en blanco') vinculada a TypeError en cotizador_view.js",
+      "inputs": {
+        "enriched_query": "Problema: [Ventas] Los vendedores reportan que la pantalla de cotizaciones no carga y se queda en blanco para clientes mayoristas\nTipo: frontend_ui\nDetalles: Pantalla blanca (White Screen of Death) en /cotizador/mayoristas.\nEntorno: Producción / CRM",
+        "rag_context": "Ticket #1204 (Abierto): '[CRM Cotizador] Uncaught TypeError al renderizar lista de precios mayoristas en cotizador_view.js'. Estado: Asignado.",
+        "projects_text": "- ID/Identifier: 'proyecto-prueba' | Nombre: 'Proyecto Prueba' | Descripción: 'Aplicaciones core y APIs de la plataforma'\n- ID/Identifier: 'infraestructura-de-servicios' | Nombre: 'Infraestructura de Servicios' | Descripción: 'Servidores, clusters k8s y bases de datos'"
+      },
+      "outputs": {
+        "is_duplicate": true,
+        "duplicate_issue_id": 1204,
+        "suggested_project_id": "proyecto-prueba",
+        "reasoning": "El reporte funcional de los vendedores ('pantalla en blanco al cotizar para mayoristas') coincide plenamente con el ticket técnico abierto #1204 sobre Uncaught TypeError en cotizador_view.js."
+      },
+      "metadata": {
+        "difficulty": "boundary",
+        "category": "semantic_paraphrase_duplicate"
+      }
+    },
+    {
+      "id": "triage-dedup-013",
+      "description": "Ticket histórico cerrado sin solución ni workaround documentado ('se resolvió por llamada'), evaluando que NO se marque como duplicado",
+      "inputs": {
+        "enriched_query": "Problema: [Facturación] Error 'CERT_SIGNATURE_EXPIRED' al timbrar notas de crédito electrónicas\nTipo: backend_api\nDetalles: Fallo en servicio de firma digital al emitir nota de crédito en Producción.\nEntorno: Producción / Facturación",
+        "rag_context": "Ticket #615 (Cerrado - Resuelto): '[Facturación] Error CERT_SIGNATURE_EXPIRED en notas de crédito'. Comentarios: 'Se revisó en llamada de Zoom directamente con el contador y quedó andando. Cierro ticket.' (Sin pasos ni solución técnica documentada).",
+        "projects_text": "- ID/Identifier: 'proyecto-prueba' | Nombre: 'Proyecto Prueba' | Descripción: 'Aplicaciones core, facturación y APIs de la plataforma'\n- ID/Identifier: 'infraestructura-de-servicios' | Nombre: 'Infraestructura de Servicios' | Descripción: 'Servidores, clusters k8s y bases de datos'"
+      },
+      "outputs": {
+        "is_duplicate": false,
+        "duplicate_issue_id": null,
+        "suggested_project_id": "proyecto-prueba",
+        "reasoning": "Aunque el ticket histórico #615 menciona el mismo error CERT_SIGNATURE_EXPIRED y figura como Cerrado, no contiene ninguna solución técnica ni workaround documentado (solo indica que se vio en una llamada). Por lo tanto, no sirve para asistir al usuario y debe abrirse un nuevo ticket en 'proyecto-prueba'."
+      },
+      "metadata": {
+        "difficulty": "boundary",
+        "category": "closed_ticket_without_documented_solution"
+      }
+    },
+    {
+      "id": "triage-dedup-014",
+      "description": "Diferencia de alcance: ticket abierto por error de formato CSV en un solo reporte vs fallo global del almacenamiento S3 en toda la plataforma",
+      "inputs": {
+        "enriched_query": "Problema: [Infra Storage] Fallo masivo de lectura/escritura en bucket S3 afecta exportaciones y adjuntos de todos los módulos\nTipo: infra_outage\nDetalles: S3 retorna HTTP 503 SlowDown / AccessDenied en todos los pods de producción tras rotación de IAM Role.\nEntorno: Producción / AWS S3",
+        "rag_context": "Ticket #1190 (Abierto): '[Ventas] El archivo CSV de comisiones exporta la columna de fecha con formato incorrecto DD-MM-YYYY'. Estado: Nuevo.",
+        "projects_text": "- ID/Identifier: 'proyecto-prueba' | Nombre: 'Proyecto Prueba' | Descripción: 'Aplicaciones core y APIs de la plataforma'\n- ID/Identifier: 'infraestructura-de-servicios' | Nombre: 'Infraestructura de Servicios' | Descripción: 'Servidores, cloud AWS/S3, IAM, clusters k8s y bases de datos'"
+      },
+      "outputs": {
+        "is_duplicate": false,
+        "duplicate_issue_id": null,
+        "suggested_project_id": "infraestructura-de-servicios",
+        "reasoning": "El ticket abierto #1190 trata sobre un problema puntual de formato de fechas en el CSV de comisiones, mientras que el reporte actual es un incidente global de infraestructura en AWS S3 / IAM Role que afecta a toda la plataforma. Corresponde crear un nuevo ticket en 'infraestructura-de-servicios'."
+      },
+      "metadata": {
+        "difficulty": "boundary",
+        "category": "partial_symptom_vs_global_outage"
+      }
+    },
+    {
+      "id": "triage-dedup-015",
+      "description": "Dos tickets abiertos en RAG sobre el mismo bug pero uno es el ticket raíz consolidado (#1301) y otro un reporte secundario sin análisis",
+      "inputs": {
+        "enriched_query": "Problema: [Pagos] Webhook de MercadoPago retorna 500 por cambio en estructura de payload v2\nTipo: backend_api\nDetalles: KeyError 'data.id' en /api/v1/webhooks/mercadopago al recibir notificaciones IPN.\nEntorno: Producción / API Pagos",
+        "rag_context": "Ticket #1301 (Abierto - En Progreso, creado hace 3 días): '[API Pagos] Error 500 KeyError data.id en /api/v1/webhooks/mercadopago por migración de payload v2. Equipo trabajando en hotfix'.\nTicket #1345 (Abierto - Nuevo, creado hace 10 minutos): 'No entran los pagos de MercadoPago en la web'.",
+        "projects_text": "- ID/Identifier: 'proyecto-prueba' | Nombre: 'Proyecto Prueba' | Descripción: 'Aplicaciones core, pasarelas de pago y APIs de la plataforma'\n- ID/Identifier: 'infraestructura-de-servicios' | Nombre: 'Infraestructura de Servicios' | Descripción: 'Servidores, clusters k8s y bases de datos'"
+      },
+      "outputs": {
+        "is_duplicate": true,
+        "duplicate_issue_id": 1301,
+        "suggested_project_id": "proyecto-prueba",
+        "reasoning": "El problema ya está siendo tratado en el ticket principal abierto #1301, que detalla exactamente la causa raíz (KeyError 'data.id' en /api/v1/webhooks/mercadopago) y tiene un hotfix en progreso."
+      },
+      "metadata": {
+        "difficulty": "boundary",
+        "category": "multiple_open_duplicates_pick_primary"
+      }
+    },
+    {
+      "id": "triage-dedup-016",
+      "description": "Enrutamiento en catálogo de 5 proyectos ante un error de CORS originado en la configuración del Ingress de Kubernetes",
+      "inputs": {
+        "enriched_query": "Problema: [Infra Ingress] El Nginx Ingress Controller en Kubernetes bloquea peticiones preflight OPTIONS con 403 por cabeceras CORS faltantes tras migración de helm chart\nTipo: infra_outage\nDetalles: Faltan anotaciones nginx.ingress.kubernetes.io/enable-cors en el manifiesto del clúster de producción.\nEntorno: Producción / Kubernetes Ingress",
+        "rag_context": "Ticket #910 (Cerrado - Resuelto): '[Portal Web] Ajustar estilos CSS del formulario de contacto'.",
+        "projects_text": "- ID/Identifier: 'portal-clientes-web' | Nombre: 'Portal Clientes Web' | Descripción: 'Componentes React, estilos CSS y experiencia de usuario en navegador'\n- ID/Identifier: 'api-core-negocio' | Nombre: 'API Core de Negocio' | Descripción: 'Lógica de negocio backend, controladores REST y modelos de dominio'\n- ID/Identifier: 'infraestructura-de-servicios' | Nombre: 'Infraestructura de Servicios' | Descripción: 'Clusters Kubernetes, Helm charts, Nginx Ingress, redes y cloud'\n- ID/Identifier: 'data-analytics' | Nombre: 'Data & Analytics' | Descripción: 'Pipelines ETL, Airflow y Snowflake'\n- ID/Identifier: 'seguridad-iam' | Nombre: 'Seguridad e Identidad' | Descripción: 'Políticas de usuarios, roles RBAC y auditoría'"
+      },
+      "outputs": {
+        "is_duplicate": false,
+        "duplicate_issue_id": null,
+        "suggested_project_id": "infraestructura-de-servicios",
+        "reasoning": "No existen tickets duplicados en el contexto. Aunque el bloqueo de CORS impacta las peticiones web, la causa raíz está explícitamente en las anotaciones del Helm chart del Nginx Ingress Controller en Kubernetes, responsabilidad del proyecto 'infraestructura-de-servicios'."
+      },
+      "metadata": {
+        "difficulty": "boundary",
+        "category": "cross_team_ambiguous_routing"
+      }
+    },
+    {
+      "id": "triage-dedup-017",
+      "description": "Contexto RAG realista multi-bloque con metadatos, comentarios históricos y distractores, evaluando extracción de workaround en ticket #1410",
+      "inputs": {
+        "enriched_query": "Problema: [Reportes PDF] Caracteres con tildes y eñes aparecen como símbolos corruptos (Ã±) al generar certificados en Linux Alpine\nTipo: data_config\nDetalles: wkhtmltopdf / WeasyPrint en contenedor Docker Alpine renderiza mal UTF-8.\nEntorno: Producción / Contenedor Reportes",
+        "rag_context": "=== Documento Padre [issue_id: 1388 | estado: Abierto | proyecto: portal-clientes-web] ===\nTítulo: [UI] Cambiar tipografía del encabezado en landing page.\nDescripción: Solicitud de diseño para actualizar fuente a Inter.\n\n=== Documento Padre [issue_id: 1410 | estado: Cerrado - Resuelto | proyecto: proyecto-prueba] ===\nTítulo: [Exportación PDF] Problemas de encoding UTF-8 (caracteres extraños en tildes y eñes) en contenedores Alpine\nDescripción: Al exportar certificados en PDF desde los pods basados en python:3.12-alpine, los nombres con acentos o 'ñ' salen rotos.\n--- Comentario Hijo #1 (autor: dev_ops | fecha: 2026-09-10) ---\nSe verificó que faltaban los paquetes de fuentes y locales en la imagen base.\n--- Comentario Hijo #2 - SOLUCIÓN DEFINITIVA (autor: tech_lead | fecha: 2026-09-11) ---\nResuelto: Para solucionarlo de inmediato sin redesplegar código, definir la variable `LANG=es_AR.UTF-8` en el ConfigMap del deployment e instalar `apk add --no-cache font-noto msttcorefonts-installer` en el Dockerfile. Estado cambiado a Cerrado - Resuelto.",
+        "projects_text": "- ID/Identifier: 'proyecto-prueba' | Nombre: 'Proyecto Prueba' | Descripción: 'Aplicaciones core, generador de reportes PDF y APIs'\n- ID/Identifier: 'portal-clientes-web' | Nombre: 'Portal Clientes Web' | Descripción: 'Frontend público y landing page'\n- ID/Identifier: 'infraestructura-de-servicios' | Nombre: 'Infraestructura de Servicios' | Descripción: 'Servidores físicos y redes'"
+      },
+      "outputs": {
+        "is_duplicate": true,
+        "duplicate_issue_id": 1410,
+        "suggested_project_id": "proyecto-prueba",
+        "reasoning": "El ticket cerrado #1410 aborda exactamente el problema de codificación UTF-8 con tildes y eñes en contenedores Alpine al generar PDFs, e incluye en su Comentario #2 la solución documentada (configurar LANG=es_AR.UTF-8 e instalar font-noto)."
+      },
+      "metadata": {
+        "difficulty": "boundary",
+        "category": "realistic_automerging_rag_context"
+      }
+    }
+  ]
+}

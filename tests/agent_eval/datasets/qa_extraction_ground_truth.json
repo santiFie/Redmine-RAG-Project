@@ -1,0 +1,443 @@
+{
+  "metadata": {
+    "name": "dataset-qa-extraction",
+    "description": "Ground truth curado para evaluar la extracción estructurada del nodo qa_evaluator_node hacia BugReportExtraction.",
+    "dataset_type": "kv",
+    "version": "2.0.0",
+    "total_cases": 17
+  },
+  "examples": [
+    {
+      "id": "qa-extract-001",
+      "description": "Reporte completo de Backend API con endpoint, pasos explícitos, stacktrace específico y entorno staging",
+      "inputs": {
+        "user_input": "Al hacer POST a /api/v1/checkout con use_shipping_for_billing=true en staging (Chrome 122 en macOS), la API responde 500 con el siguiente error: KeyError: 'billing_address' en checkout_service.py línea 142. Pasos: 1. Añadir ítem al carrito cart_991823a. 2. En el checkout marcar el checkbox 'Misma dirección'. 3. Enviar orden. Falla de inmediato."
+      },
+      "outputs": {
+        "is_sufficient": true,
+        "title_summary": "[API Checkout] KeyError 'billing_address' en POST /api/v1/checkout al usar shipping_for_billing",
+        "incident_type": "backend_api",
+        "suggested_priority": "Alta",
+        "suggested_tracker": "Bug",
+        "reproduction_steps": "1. Añadir ítem al carrito cart_991823a.\n2. En el checkout marcar el checkbox 'Misma dirección' (use_shipping_for_billing=true).\n3. Enviar orden.",
+        "environment_info": "Staging / Chrome 122 en macOS",
+        "missing_fields": [],
+        "clarification_questions": [],
+        "technical_details": "HTTP 500, KeyError: 'billing_address' en checkout_service.py línea 142, endpoint POST /api/v1/checkout",
+        "description_markdown": "h3. Síntomas\nError 500 en POST /api/v1/checkout con KeyError 'billing_address'.\n\nh3. Pasos para Reproducir\n1. Añadir ítem al carrito cart_991823a.\n2. Marcar checkbox 'Misma dirección'.\n3. Enviar orden.\n\nh3. Entorno y Detalles Técnicos\n- Entorno: Staging / Chrome 122 en macOS\n- Archivo: checkout_service.py línea 142"
+      },
+      "metadata": {
+        "difficulty": "clear",
+        "category": "backend_api_complete"
+      }
+    },
+    {
+      "id": "qa-extract-002",
+      "description": "Reporte completo de Frontend UI en navegador móvil (Safari iOS) con pasos de interacción y error en consola de cliente",
+      "inputs": {
+        "user_input": "En Safari iOS 17.2, al hacer click en 'Confirmar Pago' en el modal de checkout, el botón queda deshabilitado y no envía la petición HTTP. Pasos: 1. Abrir checkout en iPhone con Safari 17.2. 2. Seleccionar tarjeta de crédito. 3. Presionar 'Confirmar Pago'. La consola remota muestra excepción silenciosa en requestSubmit."
+      },
+      "outputs": {
+        "is_sufficient": true,
+        "title_summary": "[Checkout UI] Botón 'Confirmar Pago' queda deshabilitado sin enviar HTTP en Safari iOS 17.2",
+        "incident_type": "frontend_ui",
+        "suggested_priority": "Normal",
+        "suggested_tracker": "Bug",
+        "reproduction_steps": "1. Abrir checkout en iPhone con Safari 17.2.\n2. Seleccionar tarjeta de crédito.\n3. Presionar 'Confirmar Pago'.",
+        "environment_info": "iPhone / Safari iOS 17.2",
+        "missing_fields": [],
+        "clarification_questions": [],
+        "technical_details": "Excepción silenciosa en requestSubmit en consola remota; botón deshabilitado",
+        "description_markdown": "h3. Síntomas\nEl botón 'Confirmar Pago' queda deshabilitado al presionarlo y no dispara la petición HTTP.\n\nh3. Pasos para Reproducir\n1. Abrir checkout en iPhone con Safari 17.2.\n2. Seleccionar tarjeta de crédito.\n3. Presionar 'Confirmar Pago'.\n\nh3. Detalles Técnicos\nExcepción silenciosa en requestSubmit en consola remota."
+      },
+      "metadata": {
+        "difficulty": "clear",
+        "category": "frontend_ui_complete"
+      }
+    },
+    {
+      "id": "qa-extract-003",
+      "description": "Incidente crítico de infraestructura en producción para evaluar suficiencia adaptativa sin pasos manuales de reproducción",
+      "inputs": {
+        "user_input": "Caída crítica de la base de datos de producción a las 04:12 UTC. PostgreSQL dejó de aceptar conexiones y el log arroja 'FATAL: sorry, too many clients already'. pgBouncer muestra el pool saturado."
+      },
+      "outputs": {
+        "is_sufficient": true,
+        "title_summary": "[Infra] Saturación de conexiones en PostgreSQL y pgBouncer en Producción (FATAL: too many clients)",
+        "incident_type": "infra_outage",
+        "suggested_priority": "Urgente",
+        "suggested_tracker": "Bug",
+        "reproduction_steps": "N/A - Incidente de producción/infraestructura",
+        "environment_info": "Producción / PostgreSQL y pgBouncer",
+        "missing_fields": [],
+        "clarification_questions": [],
+        "technical_details": "Log: 'FATAL: sorry, too many clients already' a las 04:12 UTC, saturación total del pool de conexiones pgBouncer",
+        "description_markdown": "h3. Síntomas e Impacto\nCaída crítica de PostgreSQL en producción a las 04:12 UTC. La base de datos dejó de aceptar conexiones.\n\nh3. Detalles Técnicos / Logs\n- Log: FATAL: sorry, too many clients already\n- pgBouncer: pool de conexiones saturado"
+      },
+      "metadata": {
+        "difficulty": "clear",
+        "category": "infra_outage_adaptive"
+      }
+    },
+    {
+      "id": "qa-extract-004",
+      "description": "Reporte vago de fallo en pasarela de pagos para evaluar detección de insuficiencia y solicitud de datos críticos",
+      "inputs": {
+        "user_input": "No anda el pago, me tiró un error en la pantalla."
+      },
+      "outputs": {
+        "is_sufficient": false,
+        "title_summary": "Error no especificado en el proceso de pago",
+        "incident_type": "general_bug",
+        "suggested_priority": "Normal",
+        "suggested_tracker": "Bug",
+        "reproduction_steps": "",
+        "environment_info": "",
+        "missing_fields": [
+          "pasos_reproduccion",
+          "mensaje_error_o_codigo",
+          "navegador_o_dispositivo",
+          "medio_o_pasarela_pago"
+        ],
+        "clarification_questions": [],
+        "technical_details": "",
+        "description_markdown": "h3. Síntomas\nError no especificado al intentar realizar un pago en la plataforma.\n\nh3. Estado\nInformación insuficiente para reproducir. Se solicitaron aclaraciones sobre el error exacto y el dispositivo utilizado."
+      },
+      "metadata": {
+        "difficulty": "boundary",
+        "category": "insufficient_vague"
+      }
+    },
+    {
+      "id": "qa-extract-005",
+      "description": "Reporte vago de botón no funcional en dashboard para evaluar detección de insuficiencia en interfaz visual",
+      "inputs": {
+        "user_input": "Hay un botón que no funciona en el dashboard."
+      },
+      "outputs": {
+        "is_sufficient": false,
+        "title_summary": "Botón no funcional en dashboard",
+        "incident_type": "frontend_ui",
+        "suggested_priority": "Normal",
+        "suggested_tracker": "Bug",
+        "reproduction_steps": "",
+        "environment_info": "",
+        "missing_fields": [
+          "nombre_o_ubicacion_del_boton",
+          "seccion_especifica_dashboard",
+          "comportamiento_observado"
+        ],
+        "clarification_questions": [],
+        "technical_details": "",
+        "description_markdown": "h3. Síntomas\nBotón no funcional en una sección no especificada del dashboard.\n\nh3. Estado\nInformación insuficiente. Se solicitaron aclaraciones sobre el nombre del botón, su sección y el comportamiento observado."
+      },
+      "metadata": {
+        "difficulty": "boundary",
+        "category": "insufficient_vague"
+      }
+    },
+    {
+      "id": "qa-extract-006",
+      "description": "Incidente completo de configuración y consistencia de datos (data_config) por variable de entorno errónea en producción",
+      "inputs": {
+        "user_input": "La variable de entorno DATABASE_REPLICA_URL en el pod de reportes apunta a staging en vez de producción, provocando lectura de datos inconsistentes en los balances financieros de ayer."
+      },
+      "outputs": {
+        "is_sufficient": true,
+        "title_summary": "[Config] DATABASE_REPLICA_URL apunta incorrectamente a staging en el pod de reportes",
+        "incident_type": "data_config",
+        "suggested_priority": "Alta",
+        "suggested_tracker": "Bug",
+        "reproduction_steps": "Verificar variable de entorno DATABASE_REPLICA_URL en el pod de reportes de producción.",
+        "environment_info": "Producción / Pod de reportes",
+        "missing_fields": [],
+        "clarification_questions": [],
+        "technical_details": "Variable DATABASE_REPLICA_URL desconfigurada apuntando a staging; inconsistencia en balances financieros",
+        "description_markdown": "h3. Síntomas e Impacto\nLectura de datos inconsistentes en balances financieros de producción.\n\nh3. Causa Raíz / Configuración\nVariable DATABASE_REPLICA_URL en el pod de reportes apunta al clúster de staging en lugar de producción."
+      },
+      "metadata": {
+        "difficulty": "clear",
+        "category": "data_config_complete"
+      }
+    },
+    {
+      "id": "qa-extract-007",
+      "description": "Solicitud de nueva funcionalidad (tracker Feature) con prioridad Baja y especificación de columnas requeridas",
+      "inputs": {
+        "user_input": "Solicito agregar la funcionalidad de exportar el listado de facturas a formato Excel (.xlsx) con columnas de fecha, cliente, subtotal e IVA, directamente desde la vista de facturación."
+      },
+      "outputs": {
+        "is_sufficient": true,
+        "title_summary": "[Feature] Exportación de facturas a Excel (.xlsx) con desglose impositivo",
+        "incident_type": "feature_request",
+        "suggested_priority": "Baja",
+        "suggested_tracker": "Feature",
+        "reproduction_steps": "N/A - Solicitud de nueva funcionalidad (exportación a Excel en vista de facturación).",
+        "environment_info": "Módulo de Facturación Web",
+        "missing_fields": [],
+        "clarification_questions": [],
+        "technical_details": "Exportación en formato .xlsx con columnas requeridas: fecha, cliente, subtotal e IVA.",
+        "description_markdown": "h3. Descripción de la Funcionalidad\nIncorporar botón de exportación a Excel (.xlsx) en el módulo de facturación.\n\nh3. Columnas Requeridas\n- Fecha\n- Cliente\n- Subtotal\n- IVA\n\nh3. Criterio de Aceptación\nEl archivo debe descargarse correctamente con los filtros aplicados en pantalla."
+      },
+      "metadata": {
+        "difficulty": "clear",
+        "category": "feature_request_complete"
+      }
+    },
+    {
+      "id": "qa-extract-008",
+      "description": "Ticket operativo de soporte (tracker Soporte) por error de permisos 403 Forbidden en usuario con rol asignado",
+      "inputs": {
+        "user_input": "El usuario analista_contable@empresa.com no puede acceder al módulo de Conciliaciones Bancarias en staging. Recibe error 403 Forbidden a pesar de tener asignado el rol Auditor en el panel de permisos."
+      },
+      "outputs": {
+        "is_sufficient": true,
+        "title_summary": "[Permisos] Error 403 Forbidden para rol Auditor en módulo Conciliaciones Bancarias",
+        "incident_type": "support_request",
+        "suggested_priority": "Normal",
+        "suggested_tracker": "Soporte",
+        "reproduction_steps": "1. Iniciar sesión con usuario analista_contable@empresa.com en staging.\n2. Navegar a /conciliaciones-bancarias.\n3. Se observa pantalla 403 Forbidden.",
+        "environment_info": "Staging / Módulo Conciliaciones Bancarias",
+        "missing_fields": [],
+        "clarification_questions": [],
+        "technical_details": "HTTP 403 Forbidden, usuario analista_contable@empresa.com con rol Auditor en staging",
+        "description_markdown": "h3. Síntomas\nUsuario analista_contable@empresa.com recibe HTTP 403 Forbidden al ingresar a Conciliaciones Bancarias.\n\nh3. Impacto y Entorno\nStaging. El usuario posee rol Auditor en la configuración de accesos pero el permiso no se valida correctamente."
+      },
+      "metadata": {
+        "difficulty": "clear",
+        "category": "support_permissions_complete"
+      }
+    },
+    {
+      "id": "qa-extract-009",
+      "description": "Incidente de infraestructura en producción donde el usuario declara desconocer detalles técnicos, evaluando escape adaptativo a suficiencia",
+      "inputs": {
+        "user_input": "Hay una caída en la pasarela de pagos en producción desde las 10:00 AM.\n\n[Información adicional provista por el usuario]:\nNo sé cómo ver los logs ni reproducirlo técnicamente, solo sé que ningún cliente puede pagar y da error en la pasarela de pagos de producción."
+      },
+      "outputs": {
+        "is_sufficient": true,
+        "title_summary": "[Infra] Indisponibilidad crítica en pasarela de pagos en Producción",
+        "incident_type": "infra_outage",
+        "suggested_priority": "Urgente",
+        "suggested_tracker": "Bug",
+        "reproduction_steps": "N/A - Incidente de producción/infraestructura (usuario declara desconocer pasos técnicos de reproducción).",
+        "environment_info": "Producción / Pasarela de pagos",
+        "missing_fields": [],
+        "clarification_questions": [],
+        "technical_details": "Indisponibilidad total de pagos desde las 10:00 AM en producción reportada por clientes.",
+        "description_markdown": "h3. Síntomas\nFalla generalizada en la pasarela de pagos en producción afectando a todos los clientes.\n\nh3. Impacto\nCrítico en producción desde las 10:00 AM.\n\nh3. Notas\nEl usuario declaró desconocer logs técnicos; se procede con triaje de infraestructura prioritario según reglas adaptativas."
+      },
+      "metadata": {
+        "difficulty": "boundary",
+        "category": "multiturn_adaptive_insufficient_to_sufficient"
+      }
+    },
+    {
+      "id": "qa-extract-010",
+      "description": "Reporte multi-turno enriquecido donde la clarificación del usuario aporta entorno, archivo y código de error específico",
+      "inputs": {
+        "user_input": "La sincronización de stock falla al importar inventario.\n\n[Información adicional provista por el usuario]:\nOcurre al subir el archivo CSV de inventario en Producción con Chrome 124 en Windows. El sistema muestra: 'Error de validación: SKU_NULL_ERROR en línea 45'."
+      },
+      "outputs": {
+        "is_sufficient": true,
+        "title_summary": "[Inventario] Error 'SKU_NULL_ERROR en línea 45' al importar CSV de stock en Producción",
+        "incident_type": "backend_api",
+        "suggested_priority": "Alta",
+        "suggested_tracker": "Bug",
+        "reproduction_steps": "1. Ir al módulo de inventario en Producción usando Chrome 124 en Windows.\n2. Seleccionar 'Importar Stock' y subir archivo CSV.\n3. Se produce el error de validación.",
+        "environment_info": "Producción / Chrome 124 en Windows / Módulo Inventario",
+        "missing_fields": [],
+        "clarification_questions": [],
+        "technical_details": "Error de validación: 'SKU_NULL_ERROR en línea 45' durante la importación masiva de CSV",
+        "description_markdown": "h3. Síntomas\nFallo al importar archivo CSV de stock.\n\nh3. Detalles Técnicos\nMensaje: SKU_NULL_ERROR en línea 45.\n\nh3. Entorno\nProducción (Chrome 124, Windows)."
+      },
+      "metadata": {
+        "difficulty": "boundary",
+        "category": "multiturn_clarified_complete"
+      }
+    },
+    {
+      "id": "qa-extract-011",
+      "description": "Reporte de degradación de rendimiento extremadamente vago sin servicio ni entorno, evaluando insuficiencia en infraestructura",
+      "inputs": {
+        "user_input": "Hay lentitud generalizada en el sistema."
+      },
+      "outputs": {
+        "is_sufficient": false,
+        "title_summary": "Lentitud generalizada no especificada en el sistema",
+        "incident_type": "infra_outage",
+        "suggested_priority": "Normal",
+        "suggested_tracker": "Bug",
+        "reproduction_steps": "N/A - Incidente de infraestructura no especificado",
+        "environment_info": "",
+        "missing_fields": [
+          "modulo_o_servicio_afectado",
+          "entorno",
+          "momento_o_rango_horario"
+        ],
+        "clarification_questions": [],
+        "technical_details": "",
+        "description_markdown": "h3. Síntomas\nReporte de lentitud sin especificación de entorno ni servicio.\n\nh3. Estado\nSe solicitaron precisiones sobre el entorno, módulo afectado y ventana horaria."
+      },
+      "metadata": {
+        "difficulty": "boundary",
+        "category": "insufficient_infra_vague"
+      }
+    },
+    {
+      "id": "qa-extract-012",
+      "description": "Reporte con queja emocional y vocabulario coloquial, evaluando resistencia a alucinaciones y extracción del síntoma real",
+      "inputs": {
+        "user_input": "¡Esto es inaceptable! Ya van tres veces que intento consultar el saldo de mi cuenta corriente en la web y la página se cuelga con una ruedita blanca que no para de girar. Arreglen esto ya porque nos hace perder clientes."
+      },
+      "outputs": {
+        "is_sufficient": false,
+        "title_summary": "[Web] Bloqueo con spinner infinito al consultar saldo de cuenta corriente",
+        "incident_type": "frontend_ui",
+        "suggested_priority": "Alta",
+        "suggested_tracker": "Bug",
+        "reproduction_steps": "1. Ingresar a la plataforma web.\n2. Dirigirse a la consulta de saldo de cuenta corriente.\n3. La interfaz queda bloqueada con indicador de carga infinito.",
+        "environment_info": "Plataforma Web",
+        "missing_fields": [
+          "navegador_o_dispositivo",
+          "errores_en_consola_o_red"
+        ],
+        "clarification_questions": [],
+        "technical_details": "Interfaz bloqueada con spinner infinito sin respuesta en consulta de saldo.",
+        "description_markdown": "h3. Síntomas\nSpinner de carga infinito al consultar saldo de cuenta corriente en la plataforma web.\n\nh3. Estado\nSe solicitaron detalles del navegador y comportamiento observado para descartar bloqueo del frontend."
+      },
+      "metadata": {
+        "difficulty": "boundary",
+        "category": "noisy_emotional_ui_bug"
+      }
+    },
+    {
+      "id": "qa-extract-013",
+      "description": "Reporte multi-turno donde el usuario responde con queja evasiva sin aportar los datos faltantes de UI, manteniendo is_sufficient=false",
+      "inputs": {
+        "user_input": "Hay un botón que no funciona en el dashboard.\n\n[Información adicional provista por el usuario]:\nNo tengo tiempo para fijarme qué navegador uso, solo necesito que lo arreglen urgente porque me atrasa el trabajo."
+      },
+      "outputs": {
+        "is_sufficient": false,
+        "title_summary": "Botón no funcional no especificado en el dashboard",
+        "incident_type": "frontend_ui",
+        "suggested_priority": "Normal",
+        "suggested_tracker": "Bug",
+        "reproduction_steps": "",
+        "environment_info": "",
+        "missing_fields": [
+          "nombre_o_ubicacion_del_boton",
+          "seccion_especifica_dashboard",
+          "comportamiento_observado"
+        ],
+        "clarification_questions": [],
+        "technical_details": "El usuario indica urgencia operativa pero aún no especificó cuál botón del dashboard presenta la falla ni qué ocurre al presionarlo.",
+        "description_markdown": "### Síntomas\nEl usuario reporta un botón sin funcionar en el dashboard pero no ha precisado qué botón ni en qué sección ocurre.\n\n### Estado\nInformación insuficiente para identificar el componente afectado."
+      },
+      "metadata": {
+        "difficulty": "boundary",
+        "category": "multiturn_still_insufficient"
+      }
+    },
+    {
+      "id": "qa-extract-014",
+      "description": "Input con stacktrace extenso y logs ruidosos para evaluar síntesis fiel sin pérdida de datos clave ni alucinaciones",
+      "inputs": {
+        "user_input": "Hola equipo, les copio lo que salió en consola de producción (pod billing-worker-7f9d8b-x2k) hoy a las 14:22:01 UTC al correr el cierre mensual:\n2026-10-23T14:21:58Z INFO Starting job monthly_close_batch id=8821\n2026-10-23T14:21:59Z DEBUG Fetching active subscriptions chunk=1/15\n2026-10-23T14:22:01Z ERROR Unhandled exception in worker:\nTraceback (most recent call last):\n  File \"/app/src/billing/processor.py\", line 218, in process_batch\n    tax_amount = calculate_withholding(invoice.total, customer.jurisdiction)\n  File \"/app/src/billing/taxes.py\", line 89, in calculate_withholding\n    rate = Decimal(JURISDICTION_RATES[jurisdiction_code]) / Decimal(100)\nZeroDivisionError: division by zero when aliquot_base is 0 for jurisdiction='AR-TUC'\n2026-10-23T14:22:01Z INFO Worker shutting down gracefully."
+      },
+      "outputs": {
+        "is_sufficient": true,
+        "title_summary": "[Billing Worker] ZeroDivisionError en calculate_withholding para jurisdicción 'AR-TUC' durante cierre mensual",
+        "incident_type": "backend_api",
+        "suggested_priority": "Alta",
+        "suggested_tracker": "Bug",
+        "reproduction_steps": "1. Ejecutar el job `monthly_close_batch` en producción con clientes de la jurisdicción `AR-TUC`.\n2. Al invocar `calculate_withholding` en `/app/src/billing/taxes.py` (línea 89), se produce `ZeroDivisionError`.",
+        "environment_info": "Producción / Pod billing-worker-7f9d8b-x2k",
+        "missing_fields": [],
+        "clarification_questions": [],
+        "technical_details": "ZeroDivisionError: division by zero when aliquot_base is 0 for jurisdiction='AR-TUC' en /app/src/billing/taxes.py línea 89 (invocado desde /app/src/billing/processor.py línea 218, job monthly_close_batch id=8821 a las 14:22:01 UTC).",
+        "description_markdown": "### Síntomas\nFallo en el job de cierre mensual (`monthly_close_batch`) en producción por excepción no controlada.\n\n### Detalles Técnicos y Stacktrace\n- Pod: `billing-worker-7f9d8b-x2k`\n- Archivo: `/app/src/billing/taxes.py`, línea 89 (`calculate_withholding`)\n- Excepción: `ZeroDivisionError: division by zero when aliquot_base is 0 for jurisdiction='AR-TUC'`"
+      },
+      "metadata": {
+        "difficulty": "clear",
+        "category": "long_noisy_stacktrace"
+      }
+    },
+    {
+      "id": "qa-extract-015",
+      "description": "Vulnerabilidad crítica de seguridad (IDOR) en producción para evaluar prioridad Urgente y extracción precisa",
+      "inputs": {
+        "user_input": "Detectamos un fallo grave en Producción: estando logueado como un cliente normal en el portal web (Chrome en Windows), si cambio el parámetro numérico en la URL GET /api/v2/documents/download?invoice_id=45001 por cualquier otro número consecutivo (ej. 45002), el sistema descarga el PDF de la factura fiscal de otra empresa sin validar que pertenezca a mi cuenta."
+      },
+      "outputs": {
+        "is_sufficient": true,
+        "title_summary": "[Seguridad / IDOR] Descarga no autorizada de facturas de terceros en GET /api/v2/documents/download",
+        "incident_type": "backend_api",
+        "suggested_priority": "Urgente",
+        "suggested_tracker": "Bug",
+        "reproduction_steps": "1. Iniciar sesión con una cuenta de cliente estándar en el portal web de Producción.\n2. Invocar `GET /api/v2/documents/download?invoice_id=45002` modificando el parámetro `invoice_id` por el de otro cliente.\n3. El servidor retorna el PDF fiscal de otra empresa sin verificar pertenencia (IDOR).",
+        "environment_info": "Producción / Portal Web (Chrome en Windows) / Endpoint GET /api/v2/documents/download",
+        "missing_fields": [],
+        "clarification_questions": [],
+        "technical_details": "Vulnerabilidad IDOR (Insecure Direct Object Reference) en endpoint GET /api/v2/documents/download?invoice_id=... permite acceso cruzado a documentos fiscales de otros clientes.",
+        "description_markdown": "### Síntomas e Impacto de Seguridad\nExposición crítica de datos fiscales entre clientes en Producción por falta de validación de autorización en la descarga de documentos.\n\n### Pasos para Reproducir\n1. Autenticarse como cliente en Producción.\n2. Cambiar el parámetro `invoice_id` en `GET /api/v2/documents/download?invoice_id=45002`.\n3. Se descarga la factura perteneciente a otra organización."
+      },
+      "metadata": {
+        "difficulty": "clear",
+        "category": "security_idor_urgent"
+      }
+    },
+    {
+      "id": "qa-extract-016",
+      "description": "Fallo intermitente (flaky) en generación de recibos con datos suficientes de entorno y síntoma para evaluar que no se bloquee innecesariamente",
+      "inputs": {
+        "user_input": "En el módulo de Tesorería (Producción, Firefox 125 en Ubuntu), cuando dos cajeros aprueban órdenes de pago al mismo segundo en `/api/v1/treasury/approve`, aproximadamente 1 de cada 5 veces devuelve HTTP 409 Conflict con el mensaje `OptimisticLockError: version mismatch on payment_order_seq` y deja la orden trabada en estado `PROCESSING`."
+      },
+      "outputs": {
+        "is_sufficient": true,
+        "title_summary": "[Tesorería] Error intermitente HTTP 409 OptimisticLockError al aprobar órdenes de pago concurrentes",
+        "incident_type": "backend_api",
+        "suggested_priority": "Alta",
+        "suggested_tracker": "Bug",
+        "reproduction_steps": "1. En el módulo de Tesorería en Producción, ejecutar aprobaciones simultáneas desde dos sesiones sobre `/api/v1/treasury/approve`.\n2. De forma intermitente (1 de cada 5 intentos) la API responde HTTP 409 `OptimisticLockError` y la orden queda en estado `PROCESSING`.",
+        "environment_info": "Producción / Módulo Tesorería / Firefox 125 en Ubuntu",
+        "missing_fields": [],
+        "clarification_questions": [],
+        "technical_details": "HTTP 409 Conflict en /api/v1/treasury/approve con 'OptimisticLockError: version mismatch on payment_order_seq' bajo concurrencia; estado inconsistente 'PROCESSING'.",
+        "description_markdown": "### Síntomas\nFallo intermitente por condición de carrera al aprobar órdenes de pago en simultáneo, dejando registros bloqueados en estado `PROCESSING`.\n\n### Detalles Técnicos\n- Endpoint: `/api/v1/treasury/approve`\n- Error: `HTTP 409 Conflict - OptimisticLockError: version mismatch on payment_order_seq`"
+      },
+      "metadata": {
+        "difficulty": "boundary",
+        "category": "flaky_concurrency_bug"
+      }
+    },
+    {
+      "id": "qa-extract-017",
+      "description": "Correo reenviado con saludos, firmas y texto irrelevante para evaluar limpieza de ruido y detección de missing_fields en support_request",
+      "inputs": {
+        "user_input": "---------- Forwarded message ---------\nDe: Martín Gómez <mgomez@cliente.com>\nPara: Mesa de Ayuda\nHola chicos, ¿cómo andan? Espero que hayan tenido un gran fin de semana. Les reenvío esto porque acá en la oficina de Rosario estamos a full con la auditoría trimestral y necesitamos que por favor nos habiliten urgente el acceso al módulo de Reportes Impositivos para la chica nueva que entró este lunes al equipo contable. Muchas gracias, saludos cordiales.\n--\nMartín Gómez | Jefe de Administración | Tel: +54 341 555-0192"
+      },
+      "outputs": {
+        "is_sufficient": false,
+        "title_summary": "[Soporte] Solicitud de habilitación de acceso al módulo de Reportes Impositivos",
+        "incident_type": "support_request",
+        "suggested_priority": "Normal",
+        "suggested_tracker": "Soporte",
+        "reproduction_steps": "N/A - Solicitud operativa de habilitación de permisos.",
+        "environment_info": "Módulo de Reportes Impositivos",
+        "missing_fields": [
+          "usuario_o_correo_electronico_de_la_persona_a_habilitar",
+          "rol_o_nivel_de_permiso_requerido",
+          "entorno"
+        ],
+        "clarification_questions": [],
+        "technical_details": "Solicitud de alta de permisos en el módulo de Reportes Impositivos para nueva integrante del equipo contable (falta identificar su usuario/email y rol).",
+        "description_markdown": "### Descripción de la Solicitud\nSe solicita habilitar el acceso al módulo de Reportes Impositivos para una nueva integrante del área contable.\n\n### Datos Faltantes\nSe requiere conocer el correo/usuario de la cuenta afectada y el rol específico a asignar."
+      },
+      "metadata": {
+        "difficulty": "boundary",
+        "category": "forwarded_email_support_incomplete"
+      }
+    }
+  ]
+}

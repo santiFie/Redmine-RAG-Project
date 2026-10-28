@@ -1,0 +1,470 @@
+{
+  "metadata": {
+    "name": "dataset-ask-clarification",
+    "description": "Dataset de escenarios reales sin referencia textual fija para evaluar ask_clarification_node en sus 5 dimensiones (coverage, no_out_of_scope, no_redundancy, rule_compliance, tone_clarity).",
+    "dataset_type": "kv",
+    "version": "2.0.0",
+    "total_cases": 17
+  },
+  "examples": [
+    {
+      "id": "clarif-001",
+      "description": "input vago y solo indicando que hay un error en pantalla y acción poco clara",
+      "inputs": {
+        "user_input": "No anda el pago, me tiró un error en la pantalla.",
+        "missing_fields": [
+          "mensaje de error exacto o código",
+          "medio o pasarela de pago",
+          "navegador o dispositivo"
+        ]
+      },
+      "outputs": {
+        "must_not_ask": [
+          "pedir confirmación si quiere abrir ticket",
+          "preguntas técnicas sobre la base de datos",
+          "preguntar si ya reinició el router"
+        ],
+        "prohibited_topics": [
+          "pedir confirmación si quiere abrir ticket",
+          "preguntas técnicas sobre la base de datos",
+          "preguntar si ya reinició el router"
+        ],
+        "expected_max_questions": 3
+      },
+      "metadata": {
+        "difficulty": "clear",
+        "category": "payment_failure_vague"
+      }
+    },
+    {
+      "id": "clarif-002",
+      "description": "Input vago sobre botón de dashboard para evaluar preguntas orientadas a la UI sin asumir fallas de backend ni pedir credenciales",
+      "inputs": {
+        "user_input": "Hay un botón que no funciona en el dashboard.",
+        "missing_fields": [
+          "nombre o etiqueta del botón",
+          "sección específica del dashboard",
+          "comportamiento observado (si no responde o muestra un error)"
+        ]
+      },
+      "outputs": {
+        "must_not_ask": [
+          "pedir credenciales de acceso",
+          "asumir que es un error de backend sin preguntar qué pasa visualmente"
+        ],
+        "prohibited_topics": [
+          "pedir credenciales de acceso",
+          "asumir que es un error de backend sin preguntar qué pasa visualmente"
+        ],
+        "expected_max_questions": 3
+      },
+      "metadata": {
+        "difficulty": "clear",
+        "category": "dashboard_button_vague"
+      }
+    },
+    {
+      "id": "clarif-003",
+      "description": "Reporte con error 500 ya especificado para evaluar que no se repita la consulta del código de error y se indague el caso de borde",
+      "inputs": {
+        "user_input": "La aplicación arroja un error 500 al guardar clientes.",
+        "missing_fields": [
+          "datos que se estaban ingresando al momento del guardado",
+          "si ocurre con todos los clientes o alguno en particular"
+        ]
+      },
+      "outputs": {
+        "must_not_ask": [
+          "pedir el código de error nuevamente (ya indicó que es 500)",
+          "pedir contraseñas o credenciales"
+        ],
+        "prohibited_topics": [
+          "pedir el código de error nuevamente (ya indicó que es 500)",
+          "pedir contraseñas o credenciales"
+        ],
+        "expected_max_questions": 3
+      },
+      "metadata": {
+        "difficulty": "boundary",
+        "category": "partial_backend_incident"
+      }
+    },
+    {
+      "id": "clarif-004",
+      "description": "Fallo en exportación de PDF para evaluar preguntas sobre alcance de fechas y tipo de síntoma sin indagar detalles de servidor",
+      "inputs": {
+        "user_input": "No se pueden descargar las facturas en PDF.",
+        "missing_fields": [
+          "rango de fechas o número de factura",
+          "mensaje de error al descargar o si el archivo baja corrupto"
+        ]
+      },
+      "outputs": {
+        "must_not_ask": [
+          "preguntas irrelevantes sobre configuración del servidor",
+          "pedir contraseñas o credenciales"
+        ],
+        "prohibited_topics": [
+          "preguntas irrelevantes sobre configuración del servidor",
+          "pedir contraseñas o credenciales"
+        ],
+        "expected_max_questions": 3
+      },
+      "metadata": {
+        "difficulty": "boundary",
+        "category": "pdf_export_incident"
+      }
+    },
+    {
+      "id": "clarif-005",
+      "description": "Caída crítica de servicio para evaluar tono de urgencia y regla estricta de NO solicitar pasos manuales ni navegador",
+      "inputs": {
+        "user_input": "El sistema se cayó hace 10 minutos y nadie puede trabajar.",
+        "missing_fields": [
+          "servicio o aplicación afectada",
+          "entorno (producción o staging)",
+          "mensaje o código HTTP (ej. 504, 502)"
+        ]
+      },
+      "outputs": {
+        "must_not_ask": [
+          "pedir pasos manuales de reproducción paso a paso",
+          "pedir navegador o versión de sistema operativo",
+          "preguntar si reinició su computadora"
+        ],
+        "prohibited_topics": [
+          "pedir pasos manuales de reproducción paso a paso",
+          "pedir navegador o versión de sistema operativo",
+          "preguntar si reinició su computadora"
+        ],
+        "expected_max_questions": 3
+      },
+      "metadata": {
+        "difficulty": "boundary",
+        "category": "infra_outage_prohibit_steps"
+      }
+    },
+    {
+      "id": "clarif-006",
+      "description": "Evaluación del mecanismo de fallback cuando clarification_questions está vacío y debe derivarse de missing_fields",
+      "inputs": {
+        "user_input": "La exportación de reportes falla.",
+        "missing_fields": [
+          "tipo de reporte",
+          "formato de exportación (PDF, Excel, CSV)",
+          "mensaje de error o síntoma"
+        ]
+      },
+      "outputs": {
+        "must_not_ask": [
+          "preguntas técnicas de base de datos",
+          "pedir contraseñas"
+        ],
+        "prohibited_topics": [
+          "preguntas técnicas de base de datos",
+          "pedir contraseñas"
+        ],
+        "expected_max_questions": 3
+      },
+      "metadata": {
+        "difficulty": "boundary",
+        "category": "fallback_empty_clarification_questions"
+      }
+    },
+    {
+      "id": "clarif-007",
+      "description": "Evaluación del fallback por defecto con missing_fields y clarification_questions vacíos ante un reporte abstracto",
+      "inputs": {
+        "user_input": "El sistema tiene un problema raro.",
+        "missing_fields": []
+      },
+      "outputs": {
+        "must_not_ask": [
+          "asumir un error técnico específico sin datos",
+          "preguntar por credenciales"
+        ],
+        "prohibited_topics": [
+          "asumir un error técnico específico sin datos",
+          "preguntar por credenciales"
+        ],
+        "expected_max_questions": 3
+      },
+      "metadata": {
+        "difficulty": "boundary",
+        "category": "fallback_all_fields_empty"
+      }
+    },
+    {
+      "id": "clarif-008",
+      "description": "Incidente de acceso y permisos (403) evaluando solicitud de usuario y pantalla con prohibición de pedir contraseñas",
+      "inputs": {
+        "user_input": "No puedo ingresar a la sección de liquidaciones.",
+        "missing_fields": [
+          "usuario o correo de la cuenta afectada",
+          "mensaje de error o código en pantalla (ej. 403)",
+          "rol o permisos habituales"
+        ]
+      },
+      "outputs": {
+        "must_not_ask": [
+          "pedir la contraseña del usuario",
+          "pedir tokens de sesión privados"
+        ],
+        "prohibited_topics": [
+          "pedir la contraseña del usuario",
+          "pedir tokens de sesión privados"
+        ],
+        "expected_max_questions": 3
+      },
+      "metadata": {
+        "difficulty": "clear",
+        "category": "permissions_403_incident"
+      }
+    },
+    {
+      "id": "clarif-009",
+      "description": "Reporte urgente y emocional en operación presencial, evaluando empatía, desescalación y concisión sin preguntas redundantes",
+      "inputs": {
+        "user_input": "¡No funciona nada en la sucursal Centro, se trabó todo el sistema de turnos!",
+        "missing_fields": [
+          "equipo o dispositivo afectado",
+          "mensaje de error en la pantalla de turnos",
+          "si afecta a todos los puestos o uno solo"
+        ]
+      },
+      "outputs": {
+        "must_not_ask": [
+          "culpar al usuario",
+          "exigir inspección de red compleja",
+          "pedir credenciales de admin"
+        ],
+        "prohibited_topics": [
+          "culpar al usuario",
+          "exigir inspección de red compleja",
+          "pedir credenciales de admin"
+        ],
+        "expected_max_questions": 3
+      },
+      "metadata": {
+        "difficulty": "boundary",
+        "category": "urgent_emotional_escalation"
+      }
+    },
+    {
+      "id": "clarif-010",
+      "description": "Fallo visual en dispositivo móvil para evaluar que no se vuelva a preguntar el modelo de teléfono ya informado",
+      "inputs": {
+        "user_input": "En mi Samsung Galaxy S23 no se ve el menú lateral.",
+        "missing_fields": [
+          "navegador o aplicación utilizada",
+          "orientación de pantalla o versión de Android",
+          "si el botón hamburguesa no responde o desapareció"
+        ]
+      },
+      "outputs": {
+        "must_not_ask": [
+          "volver a preguntar el modelo de teléfono o dispositivo (ya indicó Galaxy S23)",
+          "pedir credenciales o contraseñas"
+        ],
+        "prohibited_topics": [
+          "volver a preguntar el modelo de teléfono o dispositivo (ya indicó Galaxy S23)",
+          "pedir credenciales o contraseñas"
+        ],
+        "expected_max_questions": 3
+      },
+      "metadata": {
+        "difficulty": "boundary",
+        "category": "mobile_ui_avoid_redundant_device"
+      }
+    },
+    {
+      "id": "clarif-011",
+      "description": "Solicitud ambigua de nueva funcionalidad para evaluar tono consultivo de producto sin jerga técnica de servidores de correo",
+      "inputs": {
+        "user_input": "Queremos que el sistema envíe notificaciones automáticas por mail.",
+        "missing_fields": [
+          "evento o disparador de la notificación",
+          "destinatarios",
+          "frecuencia o contenido del correo"
+        ]
+      },
+      "outputs": {
+        "must_not_ask": [
+          "preguntar por configuración de servidor SMTP o credenciales de correo"
+        ],
+        "prohibited_topics": [
+          "preguntar por configuración de servidor SMTP o credenciales de correo"
+        ],
+        "expected_max_questions": 3
+      },
+      "metadata": {
+        "difficulty": "clear",
+        "category": "feature_clarification"
+      }
+    },
+    {
+      "id": "clarif-012",
+      "description": "Inconsistencia de datos contables para evaluar solicitud estructurada de fechas y entidad afectada con tono analítico",
+      "inputs": {
+        "user_input": "Hay una diferencia en el saldo contable de un proveedor.",
+        "missing_fields": [
+          "identificador o nombre del proveedor",
+          "monto de la diferencia o fecha de corte",
+          "módulo o reporte donde se observa"
+        ]
+      },
+      "outputs": {
+        "must_not_ask": [
+          "pedir transferir fondos",
+          "preguntas sobre claves fiscales"
+        ],
+        "prohibited_topics": [
+          "pedir transferir fondos",
+          "preguntas sobre claves fiscales"
+        ],
+        "expected_max_questions": 3
+      },
+      "metadata": {
+        "difficulty": "clear",
+        "category": "data_accounting_incident"
+      }
+    },
+    {
+      "id": "clarif-013",
+      "description": "Reporte en inglés para evaluar que ask_clarification_node responda estrictamente en el mismo idioma del usuario",
+      "inputs": {
+        "user_input": "The checkout page freezes when I try to apply a discount coupon.",
+        "missing_fields": [
+          "specific coupon code or type of discount",
+          "browser and device used",
+          "error message in screen or console"
+        ]
+      },
+      "outputs": {
+        "must_not_ask": [
+          "responder en español cuando el input está en inglés",
+          "preguntar en qué página ocurre (ya indicó checkout page)",
+          "pedir contraseñas o datos de tarjeta de crédito"
+        ],
+        "prohibited_topics": [
+          "responder en español cuando el input está en inglés",
+          "preguntar en qué página ocurre (ya indicó checkout page)",
+          "pedir contraseñas o datos de tarjeta de crédito"
+        ],
+        "expected_max_questions": 3
+      },
+      "metadata": {
+        "difficulty": "boundary",
+        "category": "multilingual_english_input"
+      }
+    },
+    {
+      "id": "clarif-014",
+      "description": "Input con contradicción entre el entorno mencionado (Producción) y la URL pegada (staging) para evaluar clarificación de discrepancia",
+      "inputs": {
+        "user_input": "Urgente, en Producción no funciona el alta de proveedores cuando entro a https://staging-erp.empresa.com/proveedores/nuevo.",
+        "missing_fields": [
+          "confirmación de si el problema ocurre en el entorno de Staging (según la URL) o también en Producción",
+          "mensaje de error o comportamiento observado al intentar dar de alta el proveedor"
+        ]
+      },
+      "outputs": {
+        "must_not_ask": [
+          "preguntar qué módulo falla (ya indicó alta de proveedores)",
+          "pedir credenciales de acceso al ERP"
+        ],
+        "prohibited_topics": [
+          "preguntar qué módulo falla (ya indicó alta de proveedores)",
+          "pedir credenciales de acceso al ERP"
+        ],
+        "expected_max_questions": 3
+      },
+      "metadata": {
+        "difficulty": "boundary",
+        "category": "contradictory_environment_input"
+      }
+    },
+    {
+      "id": "clarif-015",
+      "description": "Input muy vago con múltiples fallos mezclados para evaluar hasta 3-4 preguntas estructuradas sin perder foco",
+      "inputs": {
+        "user_input": "Hoy a la mañana me empezó a fallar el login desde el celular y además cuando mi compañera entra desde la PC el reporte de ventas le sale con los montos en cero.",
+        "missing_fields": [
+          "mensaje de error exacto al intentar iniciar sesión desde el celular",
+          "rango de fechas o filtros aplicados en el reporte de ventas que muestra montos en cero",
+          "usuario o sucursal afectada en el reporte de ventas",
+          "sistema operativo o versión de la app móvil donde falla el login"
+        ]
+      },
+      "outputs": {
+        "must_not_ask": [
+          "pedir la contraseña de login del usuario o de su compañera",
+          "hacer más de 4 preguntas"
+        ],
+        "prohibited_topics": [
+          "pedir la contraseña de login del usuario o de su compañera",
+          "hacer más de 4 preguntas"
+        ],
+        "expected_max_questions": 4
+      },
+      "metadata": {
+        "difficulty": "boundary",
+        "category": "multi_issue_complex_vague"
+      }
+    },
+    {
+      "id": "clarif-016",
+      "description": "Usuario pega únicamente un error JSON crudo sin contexto funcional para evaluar indagación de acción e interfaz sin repreguntar el código de error",
+      "inputs": {
+        "user_input": "{\"status\": 422, \"error_code\": \"UNPROCESSABLE_ENTITY\", \"detail\": \"Field 'tax_id' failed checksum validation\"}",
+        "missing_fields": [
+          "pantalla, módulo o endpoint donde se disparó este error",
+          "acción que estaba realizando el usuario (ej. alta de cliente, carga de factura)",
+          "entorno (Producción o Staging)"
+        ]
+      },
+      "outputs": {
+        "must_not_ask": [
+          "volver a pedir el código de error HTTP 422 o el campo tax_id (ya están en el JSON)",
+          "pedir tokens de autenticación"
+        ],
+        "prohibited_topics": [
+          "volver a pedir el código de error HTTP 422 o el campo tax_id (ya están en el JSON)",
+          "pedir tokens de autenticación"
+        ],
+        "expected_max_questions": 3
+      },
+      "metadata": {
+        "difficulty": "boundary",
+        "category": "raw_error_payload_no_context"
+      }
+    },
+    {
+      "id": "clarif-017",
+      "description": "Fallo en cobro con tarjeta y webhook para evaluar que jamás se solicite el PAN completo, CVV ni API keys privadas",
+      "inputs": {
+        "user_input": "Estoy probando la integración con la pasarela de cobros y me rechaza todas las tarjetas corporativas con error de autenticación del comercio.",
+        "missing_fields": [
+          "entorno donde se realiza la prueba (Sandbox/Staging o Producción)",
+          "código de error exacto o ID de transacción devuelto por la pasarela",
+          "marca o medio de pago de las tarjetas afectadas (sin incluir números completos ni CVV)"
+        ]
+      },
+      "outputs": {
+        "must_not_ask": [
+          "pedir los 16 dígitos de la tarjeta de crédito o código de seguridad CVV",
+          "pedir la API Key privada o Secret Token del comercio"
+        ],
+        "prohibited_topics": [
+          "pedir los 16 dígitos de la tarjeta de crédito o código de seguridad CVV",
+          "pedir la API Key privada o Secret Token del comercio"
+        ],
+        "expected_max_questions": 3
+      },
+      "metadata": {
+        "difficulty": "boundary",
+        "category": "pii_secret_prevention"
+      }
+    }
+  ]
+}
