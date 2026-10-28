@@ -70,12 +70,16 @@ def test_qa_evaluator_variables():
 
 
 def test_ask_clarification_variables():
-    """Valida que ask-clarification acepte missing_fields."""
+    """Valida que ask-clarification acepte missing_fields y user_input."""
     prompt = get_prompt("ask-clarification")
     assert "missing_fields" in prompt.input_variables
+    assert "user_input" in prompt.input_variables
 
-    messages = prompt.format_messages(missing_fields="['pasos para reproducir', 'navegador']")
-    assert "pasos para reproducir" in messages[0].content
+    messages = prompt.format_messages(
+        user_input="Error al exportar",
+        missing_fields="['pasos para reproducir', 'navegador']",
+    )
+    assert any("pasos para reproducir" in m.content for m in messages)
 
 
 def test_get_prompt_key_error_on_unknown():
