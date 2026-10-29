@@ -73,12 +73,7 @@ def get_typesafe_classifier(
     `/v1/systemone` a partir del base_url proporcionado (por defecto: `https://openrouter.ai/api`).
     """
     resolved_base_url = base_url or "https://openrouter.ai/api"
-    resolved_api_key = (
-        api_key
-        or os.getenv("OPENROUTER_API_KEY")
-        or os.getenv("TYPESAFE_API_KEY")
-        or "dummy-key-for-mock"
-    )
+    resolved_api_key = api_key or os.getenv("OPENROUTER_API_KEY") or "dummy-key-for-mock"
     return TypeSafeClassifier(
         model=model,
         base_url=resolved_base_url,

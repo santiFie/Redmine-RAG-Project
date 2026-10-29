@@ -71,6 +71,7 @@ class State(TypedDict):
     created_issue_id: NotRequired[int | None]
     created_issue_url: NotRequired[str | None]
     reasoning: NotRequired[str]
+    creation_cancelled: NotRequired[bool]
 
     # Salida Final
     final_answer: str

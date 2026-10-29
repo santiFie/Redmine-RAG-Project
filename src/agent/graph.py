@@ -83,7 +83,7 @@ async def analyze_safe_query_node(state: State) -> dict[str, Any]:
         # user_input está en messages
         user_input = last_msg.content if hasattr(last_msg, "content") else str(last_msg)
 
-    classifier = get_typesafe_classifier(base_url=TYPESAFE_BASE_URL, model=SAFE_QUERY_MODEL)
+    classifier = get_typesafe_classifier(model=SAFE_QUERY_MODEL)
     response = await classifier.ainvoke(
         {
             "state": user_input or "",
@@ -134,7 +134,7 @@ async def analyze_intent_node(state: State) -> State:
     Salida al estado: state["intent"]
     """
     user_input: str = state["user_input"]
-    classifier = get_typesafe_classifier(base_url=TYPESAFE_BASE_URL, model=INTENT_MODEL)
+    classifier = get_typesafe_classifier(model=INTENT_MODEL)
 
     response = await classifier.ainvoke(
         {
@@ -619,20 +619,51 @@ async def confirm_issue_creation_node(state: State) -> dict[str, Any]:
     )
 
     selected_project = suggested_project
-    if isinstance(user_response, dict) and user_response.get("project_id"):
-        selected_project = str(user_response["project_id"])
+    cancelled = False
+    if isinstance(user_response, dict):
+        if user_response.get("confirm") is False:
+            cancelled = True
+        elif user_response.get("project_id"):
+            selected_project = str(user_response["project_id"])
     elif isinstance(user_response, str) and user_response.strip():
         resp_clean = user_response.strip()
-        if resp_clean.lower() not in {"si", "sí", "yes", "confirmar", "ok", "confirmo"}:
+        resp_lower = resp_clean.lower()
+        if resp_lower in _CANCEL_RESPONSES or resp_lower.startswith(("no,", "no ")):
+            cancelled = True
+        elif resp_lower not in {"si", "sí", "yes", "confirmar", "ok", "confirmo"}:
             selected_project = resp_clean
 
     return {
         "target_project_id": selected_project,
+        "creation_cancelled": cancelled,
         "messages": [
             AIMessage(content=question_text),
             HumanMessage(content=str(user_response)),
         ],
     }
+
+
+_CANCEL_RESPONSES = {
+    "no",
+    "cancelar",
+    "cancel",
+    "no crear",
+    "abortar",
+    "rechazar",
+    "ninguno",
+}
+
+
+async def respond_cancelled_creation_node(state: State) -> State:
+    msg = "Entendido, no se creó ningún ticket en Redmine. La solicitud fue cancelada."
+    return {"final_answer": msg, "messages": [AIMessage(content=msg)]}
+
+
+def route_confirmation(state: State) -> Literal["redmine_creator", "respond_cancelled"]:
+    """Enruta tras la confirmación HITL: crea el ticket o termina cancelando."""
+    if state.get("creation_cancelled", False):
+        return "respond_cancelled"
+    return "redmine_creator"
 
 
 async def redmine_issue_creator_node(state: State) -> dict[str, Any]:
@@ -724,6 +755,7 @@ def build_graph() -> StateGraph:
     workflow.add_node("redmine_creator", redmine_issue_creator_node)
     workflow.add_node("respond_existing", respond_existing_solution_node)
     workflow.add_node("respond_creation", respond_creation_summary_node)
+    workflow.add_node("respond_cancelled", respond_cancelled_creation_node)
 
     # Rama General & Guardrails
     workflow.add_node("respond_general", respond_general_node)
@@ -763,7 +795,8 @@ def build_graph() -> StateGraph:
         return "confirm_creation"
 
     workflow.add_conditional_edges("duplicate_and_rag_check", route_duplicates)
-    workflow.add_edge("confirm_creation", "redmine_creator")
+    workflow.add_conditional_edges("confirm_creation", route_confirmation)
+    workflow.add_edge("respond_cancelled", "output_guardrail")
     workflow.add_edge("redmine_creator", "respond_creation")
     workflow.add_edge("respond_existing", "output_guardrail")
     workflow.add_edge("respond_creation", "output_guardrail")
